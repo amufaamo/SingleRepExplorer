@@ -1,22 +1,21 @@
-# SiCR: Web Application for Single Cell Repertoire Analysis
+# SingleRepExplorer: Shiny App for Single Cell Repertoire Analysis
 ![Figure_Cover.jpg](Figure_Cover.jpg)
-## 0. Inquiry 問い合わせ
-Please send me any question/suggestion by using Github issues, or [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSeIGfGtbFvQKhx6lF9j29nGREMCyRxD_eEcGiqcmrNFORhIMQ/viewform?usp=sf_link)  
-なにか問い合わせ、ご提案ありましたらGithub　issuesか[Google Form](https://docs.google.com/forms/d/e/1FAIpQLSeIGfGtbFvQKhx6lF9j29nGREMCyRxD_eEcGiqcmrNFORhIMQ/viewform?usp=sf_link)でお問い合わせください。
+## 0. Inquiry
+Please send me any question/suggestion by using Github issues, or [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSeIGfGtbFvQKhx6lF9j29nGREMCyRxD_eEcGiqcmrNFORhIMQ/viewform?usp=sf_link)
 ## 1. Updates
 2023-11-06 Inquiry page was added.  
 2023-11-01 Download Button was Added.  
 2023-10-31 Bug Fixed.
 ## 2. Introduction
-SiCR is web application specialized for single cell repertoire analysis. 
+SingleRepExplorer is web application specialized for single cell repertoire analysis. 
 
 The high-throughput analysis technique for the antigen receptor repertoire has been developed through Next Generation Sequencing (NGS). Additionally, with the advent of Single-Cell RNA Sequencing (scRNA-seq), it has become possible to analyze the complete sequence information of antigen receptors for each individual cell. While scRNA-seq is a powerful tool, the analysis is complex and requires various analyses to obtain accurate data. Currently, there are several user-friendly tools available for scRNA-seq, but none are specifically designed for immuno-profiling.
 
-We have developed a web application called SiCR, which is based on R's Shiny and specializes in single-cell immune-profiling. In addition to the clustering and cell typing required for general single-cell analysis, SiCR allows for analysis of immune-profiling, such as predicting whether the chronotype is expanding in each group and which antigen the expanding chronotype targets. These analyses can be performed through mouse manipulation. Furthermore, SiCR allows for detailed figure settings, enabling immediate publication of results as a paper.
+We have developed a web application called SingleRepExplorer, which is based on R's Shiny and specializes in single-cell immune-profiling. In addition to the clustering and cell typing required for general single-cell analysis, SingleRepExplorer allows for analysis of immune-profiling, such as predicting whether the chronotype is expanding in each group and which antigen the expanding chronotype targets. These analyses can be performed through mouse manipulation. Furthermore, SingleRepExplorer allows for detailed figure settings, enabling immediate publication of results as a paper.
 
-SiCR is a comprehensive workbench that can be used by all biologists for analysis. SiCR significantly reduces the time and effort required to analyze and interpret information in single-cell immune-profiling.
+SingleRepExplorer is a comprehensive workbench that can be used by all biologists for analysis. SiCR significantly reduces the time and effort required to analyze and interpret information in single-cell immune-profiling.
 
-## 3. Install SiCR
+## 3. Install SingleRepExplorer
 ### 3.1 Install R and R studio
 If your PC (Windows, Mac, Linux) does not have R and R studio, please install these.
 https://posit.co/download/rstudio-desktop/
