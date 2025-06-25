@@ -1,0 +1,10 @@
+seurat_object.rds
+.git
+.Rproj
+.Rhistory
+.RData
+.DS_Store
+Dockerfile
+README.md
+# その他、コンテナに含めたくないファイルやディレクトリがあれば追加
+# 例: 大容量の生データファイルなど（これらはボリュームマウントで対応）

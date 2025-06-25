@@ -1,0 +1,75 @@
+# ベースイメージを選択 (R 4.3.x, Shiny Server, tidyverse を含む)
+FROM rocker/shiny-verse:4.3
+
+# システムのタイムゾーン設定 (任意、日本の場合は Asia/Tokyo)
+ENV TZ=Asia/Tokyo
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# システムの依存ライブラリをインストール
+# アプリやRパッケージの要件に応じて調整が必要
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl-dev \
+    libcurl4-openssl-dev \
+    libxml2-dev \
+    libcairo2-dev \
+    libxt-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libtiff5-dev \
+    libfontconfig1-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libfreetype6-dev \
+    libgit2-dev \
+    pandoc \
+    # webshot2 (chromote) のために Chromium や関連ライブラリが必要な場合がある
+    # rocker/shiny-verse には含まれていることが多いが、不足時は追加
+    # 例: chromium libnss3 libgconf-2-4
+    && rm -rf /var/lib/apt/lists/*
+
+# Rパッケージのインストール
+# アプリケーションで使用するすべてのRパッケージをここにリストする
+# NCPUSはビルド時の並列処理数を指定 (環境変数 NCPUS があればそれを使用、なければ2)
+RUN R -e "Sys.setenv(NCPUS = Sys.getenv('NCPUS', unset=2)); \
+    install.packages(c( \
+    'shiny', 'shinyjs', 'shinythemes', 'shinyWidgets', 'shinyBS', \
+    'Seurat', 'tidyverse', 'data.table', 'Matrix', \
+    'immunarch', 'scCustomize', \
+    'ggpubr', 'RColorBrewer', 'viridis', 'patchwork', 'ggrepel', 'ggalluvial', 'circlize', \
+    'ape', 'phylogram', \
+    'uwot', 'igraph', 'ggraph', 'EnhancedVolcano', 'plotly', 'htmlwidgets', \
+    'DT', 'kableExtra', 'formattable', 'webshot2', 'magick', \
+    'jsonlite', 'yaml', 'fs', 'openxlsx', \
+    'devtools', 'remotes', 'BiocManager', 'shinycssloaders' \
+    ), repos='https://cloud.r-project.org/', Ncpus = as.numeric(Sys.getenv('NCPUS')))"
+
+# Bioconductor パッケージのインストール
+RUN R -e "Sys.setenv(NCPUS = Sys.getenv('NCPUS', unset=2)); \
+    BiocManager::install(c( \
+        'Biostrings', 'ggtree', 'DECIPHER', 'msa', \
+        'scRepertoire'), ask = FALSE, update = FALSE, Ncpus = as.numeric(Sys.getenv('NCPUS')))"
+
+# (オプション) GitHubからインストールするパッケージがある場合
+# RUN R -e "remotes::install_github('user/repo')"
+# 例: scCustomize が特定ブランチやフォークの場合など
+# RUN R -e "remotes::install_github('samuel-marsh/scCustomize')"
+
+
+# Shinyアプリのファイル全体をコンテナの /srv/shiny-server/sicr/ ディレクトリにコピー
+COPY . /srv/shiny-server/sicr/
+
+# アプリケーションのディレクトリを作業ディレクトリとして設定
+WORKDIR /srv/shiny-server/sicr/
+
+# Shiny Serverがアプリを実行できるように権限を設定
+# rocker/shiny-verse イメージでは shiny ユーザーが使われる
+RUN chown -R shiny:shiny /srv/shiny-server/sicr && \
+    chmod -R 755 /srv/shiny-server/sicr
+
+# Shinyアプリがリッスンするポートを指定
+EXPOSE 3838
+
+# rocker/shiny-verseイメージはshiny-serverを自動起動するため、CMDは通常不要
+# デフォルトでは /srv/shiny-server 直下のアプリを探すか、設定ファイルに基づく
+# /srv/shiny-server/sicr/ にアプリがあるので、アクセスURLは通常ホストIP:ポート/sicr/ になる
+# CMD ["/usr/bin/shiny-server"]
