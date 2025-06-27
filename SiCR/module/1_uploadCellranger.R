@@ -100,11 +100,42 @@ uploadCellrangerServer <- function(id, myReactives) {
           incProgress(0.1, detail = "Processing TCR data...")
           req(myReactives$seurat_object)
           myReactives$tcr_df <- tcr_csv_to_dataframe(myReactives$tcr_path)
-          myReactives$tcr_df <- myReactives$tcr_df %>% dplyr::filter(barcode %in% myReactives$seurat_object@meta.data$barcode)
+          # --- DEBUG START (1_uploadCellranger.R - TCR processing) ---
+          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - nrow: ", nrow(myReactives$tcr_df)))
+          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - names: ", paste(names(myReactives$tcr_df), collapse = ", ")))
+          
+          # Get Seurat object barcodes (cell names)
+          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
+
+          if (nrow(myReactives$tcr_df) > 0) {
+            print(paste0("DEBUG: TCR: First 5 barcodes from tcr_df: ", paste(head(myReactives$tcr_df$barcode, 5), collapse = ", ")))
+          }
+          print(paste0("DEBUG: TCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
+          
+          # Standardize barcodes by removing '-1' suffix for matching
+          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
+          tcr_barcodes_clean <- stringr::str_replace(myReactives$tcr_df$barcode, "-1$", "")
+          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
+          
+          initial_overlap_count <- length(intersect(tcr_barcodes_clean, seurat_barcodes_clean))
+          print(paste0("DEBUG: TCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count))
+          
+          # Filter tcr_df using cleaned barcodes
+          # Temporarily add cleaned barcode to tcr_df for filtering
+          myReactives$tcr_df <- myReactives$tcr_df %>%
+            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
+            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
+            dplyr::select(-barcode_clean) # Remove temporary column
+
+          print(paste0("DEBUG: TCR: tcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$tcr_df)))
+
           metadata <- myReactives$seurat_object@meta.data %>%
             tibble::rownames_to_column(var = "barcode") %>% 
             dplyr::select(sample, seurat_clusters, barcode)
           myReactives$tcr_df <- dplyr::left_join(myReactives$tcr_df, metadata, by = "barcode")
+          # --- DEBUG END (1_uploadCellranger.R - TCR processing) ---
+          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - nrow: ", nrow(myReactives$tcr_df))) # This line was already there, keeping it.
+          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - names: ", paste(names(myReactives$tcr_df), collapse = ", "))) # This line was already there, keeping it.
           saveRDS(myReactives$tcr_df, 'tcr_df.rds')
           write.csv(myReactives$tcr_df, 'tcr_df.csv', row.names = FALSE, quote = FALSE)
         }
@@ -114,7 +145,35 @@ uploadCellrangerServer <- function(id, myReactives) {
           incProgress(0.1, detail = "Processing BCR data...")
           req(myReactives$seurat_object)
           myReactives$bcr_df <- bcr_csv_to_dataframe(myReactives$bcr_path)
-          myReactives$bcr_df <- myReactives$bcr_df %>% dplyr::filter(barcode %in% myReactives$seurat_object@meta.data$barcode)
+          # --- DEBUG START (1_uploadCellranger.R - BCR processing) ---
+          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - nrow: ", nrow(myReactives$bcr_df)))
+          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - names: ", paste(names(myReactives$bcr_df), collapse = ", ")))
+
+          # Get Seurat object barcodes (cell names)
+          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
+
+          if (nrow(myReactives$bcr_df) > 0) {
+            print(paste0("DEBUG: BCR: First 5 barcodes from bcr_df: ", paste(head(myReactives$bcr_df$barcode, 5), collapse = ", ")))
+          }
+          print(paste0("DEBUG: BCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
+
+          # Standardize barcodes by removing '-1' suffix for matching
+          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
+          bcr_barcodes_clean <- stringr::str_replace(myReactives$bcr_df$barcode, "-1$", "")
+          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
+
+          initial_overlap_count_bcr <- length(intersect(bcr_barcodes_clean, seurat_barcodes_clean))
+          print(paste0("DEBUG: BCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count_bcr))
+
+          # Filter bcr_df using cleaned barcodes
+          # Temporarily add cleaned barcode to bcr_df for filtering
+          myReactives$bcr_df <- myReactives$bcr_df %>%
+            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
+            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
+            dplyr::select(-barcode_clean) # Remove temporary column
+
+          print(paste0("DEBUG: BCR: bcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$bcr_df)))
+          # --- DEBUG END (1_uploadCellranger.R - BCR processing) ---
           metadata <- myReactives$seurat_object@meta.data %>%
             tibble::rownames_to_column(var = "barcode") %>%
             dplyr::select(sample, seurat_clusters, barcode)
@@ -169,6 +228,9 @@ PREFIX_TCR_PAIR  <- "TCR_pair_"
 PREFIX_TCR_ALPHA <- "TCR_TRA_" # Alpha鎖 (TRA)
 PREFIX_TCR_BETA  <- "TCR_TRB_" # Beta鎖 (TRB)
 
+PREFIX_BCR_PAIR  <- "BCR_pair_" # Assuming this constant is needed for BCR processing
+
+
 # --- ヘルパー関数定義 ---
 # (csv_to_tcr_pair_dataframe, csv_to_tcr_tra_dataframe, csv_to_tcr_trb_dataframe, merge_tcr, paste_existing_cols は変更なし)
 # (省略のため、ここでは再掲しません)
@@ -211,6 +273,51 @@ csv_to_tcr_pair_dataframe <- function(csv_path,
     dplyr::mutate(barcode = stringr::str_replace_all(barcode, pattern = barcode_prefix, replacement = "")) %>%
     dplyr::select(-dplyr::any_of(c("sample", "ID"))) %>%
     dplyr::rename_with(~ stringr::str_c(PREFIX_TCR_PAIR, .), dplyr::everything())
+
+  return(pair)
+}
+
+# Assuming csv_to_bcr_pair_dataframe exists in this file,
+# analogous to csv_to_tcr_pair_dataframe, and contains the problematic call.
+# The following is a hypothetical reconstruction to show the fix.
+#' @title CSVからBCRペア鎖データを抽出・整形
+#' @description 指定されたCSVファイルからscRepertoire::combineBCRを使用して
+#'              ペア鎖データ (主にIGH/IGL/IGK) を抽出し、整形します。
+#' @param csv_path `character(1)`. 入力CSVファイルのパス。
+#' @param sample_name `character(1)`. combineBCRで使用する一時的なサンプル名。デフォルトは "temp_sample"。
+#' @param id_name `character(1)`. combineBCRで使用する一時的なID名。デフォルトは "temp_id"。
+#' @return `data.frame`. 整形されたBCRペア鎖情報。列名は `PREFIX_BCR_PAIR` 付与。
+csv_to_bcr_pair_dataframe <- function(csv_path,
+                                      sample_name = "temp_sample",
+                                      id_name = "temp_id") {
+
+  barcode_prefix <- paste0(sample_name, "_", id_name, "_")
+  bcr_raw <- tryCatch({
+    readr::read_csv(csv_path, show_col_types = FALSE)
+  }, error = function(e) {
+    stop("Error reading CSV file: ", csv_path, "\n", e$message)
+    return(NULL)
+  })
+  if (is.null(bcr_raw)) return(NULL)
+
+  pair_list <- tryCatch({
+    # FIX: combineBCR does NOT have filterMulti = TRUE. Removed it.
+    scRepertoire::combineBCR(bcr_raw, samples = sample_name, ID = id_name, removeNA = TRUE)
+  }, error = function(e) {
+    stop("Error in combineBCR: ", e$message)
+    return(NULL)
+  })
+
+  if (is.null(pair_list) || length(pair_list) == 0 || is.null(pair_list[[1]])) {
+    warning("combineBCR did not return valid pair data.")
+    return(data.frame()) # 空のデータフレームを返す
+  }
+  pair <- pair_list[[1]]
+
+  pair <- pair %>%
+    dplyr::mutate(barcode = stringr::str_replace_all(barcode, pattern = barcode_prefix, replacement = "")) %>%
+    dplyr::select(-dplyr::any_of(c("sample", "ID"))) %>%
+    dplyr::rename_with(~ stringr::str_c(PREFIX_BCR_PAIR, .), dplyr::everything())
 
   return(pair)
 }
