@@ -17,8 +17,15 @@ clonotypeInformationUI <- function(id) {
 clonotypeInformationServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     table <- reactive({
+      # --- DEBUG START (4_1_clonotypeInformation.R) ---
+      print(paste0("DEBUG: clonotypeInformationServer - vdj_type: ", input$vdj_type))
+      # browser() # ここで実行を一時停止して myReactives$tcr_df の内容を確認できます
+      # --- DEBUG END ---
       if (input$vdj_type == "tcr") {
-        myReactives$tcr_df %>%
+        # TCRデータフレームが存在することを確認
+        req(myReactives$tcr_df)
+
+        tcr_result_df <- myReactives$tcr_df %>%
           dplyr::select(
             dplyr::any_of(c(
             "raw_clonotype_id",
@@ -69,22 +76,31 @@ clonotypeInformationServer <- function(id, myReactives) {
           ))
            ) %>%
           distinct() %>%
+          # clonotype_id が NA でない行のみを対象にする
+          filter(!is.na(raw_clonotype_id)) %>%
           mutate(
             # parse_number を使って数値部分を抽出し、一時的な列 clonotype_num を作成
-            clonotype_num = parse_number(raw_clonotype_id)
+            clonotype_num = readr::parse_number(raw_clonotype_id),
+            # subclonotype_id が NA の場合の処理を追加
+            exact_subclonotype_id = tidyr::replace_na(exact_subclonotype_id, "")
           ) %>%
-          # 4. ID と subclonotype ID に基づいて並び替え
+          # ID と subclonotype ID に基づいて並び替え
           arrange(
             clonotype_num, # まず clonotype 番号 (昇順)
             exact_subclonotype_id # 次に exact_subclonotype_id (昇順)
           ) %>%
-          # 5. 並び替えに使用した一時的な列を削除 (不要な場合)
+          # 並び替えに使用した一時的な列を削除
           dplyr::select(-clonotype_num)
+        # --- DEBUG START (4_1_clonotypeInformation.R) ---
+        print(paste0("DEBUG: TCR table() reactive - final nrow: ", nrow(tcr_result_df) ))
+        # browser() # ここで実行を一時停止して最終的なテーブルの内容を確認できます
+        # --- DEBUG END ---
+        return(tcr_result_df) # 処理されたデータフレームを返す
       } else if (input$vdj_type == "bcr") {
         # myReactives$bcr_df が存在するか確認 (任意だが推奨)
         req(myReactives$bcr_df)
 
-        myReactives$bcr_df %>%
+        bcr_result_df <- myReactives$bcr_df %>% # BCR側も同様に変数に格納
           # any_of を使用して、万が一列が存在しなくてもエラーにならないようにする
           dplyr::select(
             dplyr::any_of(c(
@@ -140,6 +156,7 @@ clonotypeInformationServer <- function(id, myReactives) {
             exact_subclonotype_id
           ) %>%
           dplyr::select(-clonotype_num)
+        return(bcr_result_df) # 処理されたデータフレームを返す
       } else {
         # vdj_type が "tcr" でも "bcr" でもない場合の処理 (例: NULLを返す)
         NULL
