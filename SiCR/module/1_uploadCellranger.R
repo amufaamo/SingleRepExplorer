@@ -100,10 +100,98 @@ uploadCellrangerServer <- function(id, myReactives) {
         
         # ... (TCR/BCR処理、Finalizingの呼び出しは変更なし) ...
         if (!is.null(myReactives$tcr_path)) {
-            # ...
+                  incProgress(0.1, detail = "Processing TCR data...")
+          req(myReactives$seurat_object)
+          myReactives$tcr_df <- tcr_csv_to_dataframe(myReactives$tcr_path)
+          # --- DEBUG START (1_uploadCellranger.R - TCR processing) ---
+          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - nrow: ", nrow(myReactives$tcr_df)))
+          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - names: ", paste(names(myReactives$tcr_df), collapse = ", ")))
+          
+          # Get Seurat object barcodes (cell names)
+          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
+
+          if (nrow(myReactives$tcr_df) > 0) {
+            print(paste0("DEBUG: TCR: First 5 barcodes from tcr_df: ", paste(head(myReactives$tcr_df$barcode, 5), collapse = ", ")))
+          }
+          print(paste0("DEBUG: TCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
+          
+          # Standardize barcodes by removing '-1' suffix for matching
+          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
+          tcr_barcodes_clean <- stringr::str_replace(myReactives$tcr_df$barcode, "-1$", "")
+          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
+          
+          initial_overlap_count <- length(intersect(tcr_barcodes_clean, seurat_barcodes_clean))
+          print(paste0("DEBUG: TCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count))
+          
+          # Filter tcr_df using cleaned barcodes
+          # Temporarily add cleaned barcode to tcr_df for filtering
+          myReactives$tcr_df <- myReactives$tcr_df %>%
+            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
+            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
+            dplyr::select(-barcode_clean) # Remove temporary column
+
+          print(paste0("DEBUG: TCR: tcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$tcr_df)))
+
+          metadata <- myReactives$seurat_object@meta.data %>%
+            tibble::rownames_to_column(var = "barcode") %>% 
+            dplyr::select(sample, seurat_clusters, barcode)
+          myReactives$tcr_df <- dplyr::left_join(myReactives$tcr_df, metadata, by = "barcode")
+          # --- DEBUG END (1_uploadCellranger.R - TCR processing) ---
+          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - nrow: ", nrow(myReactives$tcr_df))) # This line was already there, keeping it.
+          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - names: ", paste(names(myReactives$tcr_df), collapse = ", "))) # This line was already there, keeping it.
+          saveRDS(myReactives$tcr_df, 'tcr_df.rds')
+          write.csv(myReactives$tcr_df, 'tcr_df.csv', row.names = FALSE, quote = FALSE)
+ 
         }
         if (!is.null(myReactives$bcr_path)) {
-            # ...
+                  incProgress(0.1, detail = "Processing BCR data...")
+          req(myReactives$seurat_object)
+          myReactives$bcr_df <- bcr_csv_to_dataframe(myReactives$bcr_path)
+          # --- DEBUG START (1_uploadCellranger.R - BCR processing) ---
+          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - nrow: ", nrow(myReactives$bcr_df)))
+          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - names: ", paste(names(myReactives$bcr_df), collapse = ", ")))
+
+          # Get Seurat object barcodes (cell names)
+          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
+
+          if (nrow(myReactives$bcr_df) > 0) {
+            print(paste0("DEBUG: BCR: First 5 barcodes from bcr_df: ", paste(head(myReactives$bcr_df$barcode, 5), collapse = ", ")))
+          }
+          print(paste0("DEBUG: BCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
+
+          # Standardize barcodes by removing '-1' suffix for matching
+          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
+          bcr_barcodes_clean <- stringr::str_replace(myReactives$bcr_df$barcode, "-1$", "")
+          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
+
+          initial_overlap_count_bcr <- length(intersect(bcr_barcodes_clean, seurat_barcodes_clean))
+          print(paste0("DEBUG: BCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count_bcr))
+
+          # Filter bcr_df using cleaned barcodes
+          # Temporarily add cleaned barcode to bcr_df for filtering
+          myReactives$bcr_df <- myReactives$bcr_df %>%
+            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
+            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
+            dplyr::select(-barcode_clean) # Remove temporary column
+
+          print(paste0("DEBUG: BCR: bcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$bcr_df)))
+          # --- DEBUG END (1_uploadCellranger.R - BCR processing) ---
+          metadata <- myReactives$seurat_object@meta.data %>%
+            tibble::rownames_to_column(var = "barcode") %>%
+            dplyr::select(sample, seurat_clusters, barcode)
+          myReactives$bcr_df <- dplyr::left_join(myReactives$bcr_df, metadata, by = "barcode")
+          saveRDS(myReactives$bcr_df, 'bcr_df.rds')
+          write.csv(myReactives$bcr_df, 'bcr_df.csv',  row.names = FALSE, quote = FALSE)
+                 # ### ✨ここが変更点です！✨ ###
+        # myReactives（特別な箱）を、reactiveValuesToList()を使って
+        # myReactives_list（普通のリスト）に変換します。
+        # これで、Shinyアプリの外（通常のRセッション）でも安全に中身を確認できます！
+        message("--- Converting reactiveValues to a list for saving ---")
+        myReactives_list <- reactiveValuesToList(myReactives)
+        
+        # 変換したリストを.RDataファイルとして保存します
+        save(myReactives_list, file = "myReactives_data.RData")
+        message("--- Successfully saved to myReactives_data.RData ---")
         }
         incProgress(0.1, detail = "Finalizing...")
 
