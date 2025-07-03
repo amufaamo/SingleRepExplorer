@@ -36,6 +36,8 @@ reductionPlotServer <- function(id, myReactives) {
     
     observeEvent(myReactives$seurat_object,{
       req(myReactives$seurat_object)
+      # Seuratオブジェクトから利用可能なリダクションを動的に読み込みUIを更新
+      update_reduction_choices(session, myReactives)
       update_group_by_for_dimplot(session, myReactives)
       # Initial update of unique_group choices based on default "sample"
       update_unique_group_choices(session, myReactives, "sample")
@@ -62,7 +64,7 @@ reductionPlotServer <- function(id, myReactives) {
         
         p <- DimPlot(
           so,
-          reduction = input$reduction,
+          reduction = input$reduction, # UIから渡される値は既に正しい小文字の名前です
           group.by = input$group_by,
           cells.highlight = highlights,
           cols.highlight = 'darkblue',
@@ -77,7 +79,7 @@ reductionPlotServer <- function(id, myReactives) {
         # Standard DimPlot Logic
         p <- DimPlot(
           so,
-          reduction = input$reduction,
+          reduction = input$reduction, # UIから渡される値は既に正しい小文字の名前です
           label = TRUE,
           pt.size = input$point_size,
           group.by = input$group_by,
@@ -106,7 +108,7 @@ reductionPlotServer <- function(id, myReactives) {
       table_data <- cbind(so@meta.data, reduction_data)
       
       # 表示する列を選択（必要に応じて調整）
-      table_data <- table_data %>% select(input$group_by, starts_with(paste0(toupper(input$reduction), "_")))
+      table_data <- table_data %>% select(input$group_by, starts_with(paste0(input$reduction, "_")))
       
       table_data
     })
@@ -136,7 +138,7 @@ reductionPlotServer <- function(id, myReactives) {
         table_data <- cbind(so@meta.data, reduction_data)
         
         # 表示する列を選択（必要に応じて調整）
-        table_data <- table_data %>% select(input$group_by, starts_with(paste0(toupper(input$reduction), "_")))
+        table_data <- table_data %>% select(input$group_by, starts_with(paste0(input$reduction, "_")))
         
         write.csv(table_data, file, row.names = FALSE)
       }
@@ -145,14 +147,34 @@ reductionPlotServer <- function(id, myReactives) {
   })
 }
 
+# Seuratオブジェクトに存在するリダクション名を取得し、UIの選択肢を動的に更新する関数
+update_reduction_choices <- function(session, myReactives) {
+  ns <- session$ns
+  req(myReactives$seurat_object)
+  
+  # Seuratオブジェクトからリダクション名（'pca', 'umap', 'tsne'など）を取得
+  reduction_names <- names(myReactives$seurat_object@reductions)
+  
+  # UIで表示する名前（例: 'umap' -> 'UMAP'）と、サーバー側で使う値（'umap'）のペアを作成
+  # toupperは 'tsne' を 'TSNE' に変換します。'T-SNE' のようにしたい場合は個別の処理が必要です。
+  choices <- stats::setNames(reduction_names, toupper(reduction_names))
+  
+  # デフォルトの選択肢を決定（'umap'があればそれを、なければ最初のものを選択）
+  default_selection <- if ("umap" %in% reduction_names) "umap" else reduction_names[1]
+  
+  # selectInputを更新
+  updateSelectInput(session, "reduction", choices = choices, selected = default_selection)
+}
+
 
 update_group_by_for_dimplot <- function(session, myReactives) {
   # 除外する列名
-  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt", "RNA_snn_res.0.5")
+  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt")
   
   # メタデータ列を選択
   metadatas <- myReactives$seurat_object@meta.data %>%
-    select(-all_of(minus_column)) %>%
+    # FIX: Use any_of to prevent errors if a column doesn't exist
+    select(-any_of(minus_column), -starts_with("RNA_snn_res.")) %>%
     select(-starts_with("TCR"), -starts_with("BCR"))
   metadata_cols <- names(metadatas)
   
@@ -173,7 +195,6 @@ update_group_by_for_dimplot <- function(session, myReactives) {
   updateSelectInput(session, "group_by", choices = group_cols, selected = default_selection)
   # updateSelectInput(session, "split_by", choices = group_cols, selected = default_selection) # Remove split_by
   #  updateSelectInput(session, "split_by", choices = c(group_cols, 'none' = NULL), selected = NULL)
-  
   
 }
 

@@ -226,8 +226,9 @@ commonPlotOptions <- function(ns, legend_selected = "right", width_value = 500, 
   )
 }
 
-reductionInput <- function(ns, selected = "umap") {
-  selectInput(ns("reduction"), "Reduction Method", choices = c("UMAP" = "umap", "T-SNE" = "tsne"), selected = selected)
+reductionInput <- function(ns) {
+  # 初期状態では選択肢を空にする。サーバー側 (update_reduction_choices) で動的に更新されるため。
+  selectInput(ns("reduction"), "Reduction Method", choices = list("Loading..." = ""), selected = "")
 }
 
 groupByInput <- function(ns, choices = c("sample", "seurat_clusters"), selected = "sample") {
@@ -268,54 +269,7 @@ h5_to_seurat_object <- function(myReactives) {
   return(myReactives)
 }
 
-run_seurat_object <- function(myReactives) {
-  req(myReactives$seurat_object) # Seuratオブジェクトが必要
-  seurat_object <- myReactives$seurat_object
-  # Ensure rownames are available before trying to create barcode column
-  if(is.null(rownames(seurat_object@meta.data))) rownames(seurat_object@meta.data) <- colnames(seurat_object)
-  seurat_object@meta.data <- seurat_object@meta.data %>%
-    # rownames を barcode 列として安全に追加
-    tibble::rownames_to_column("barcode") %>%
-    # sample 列を作成 (エラーハンドリング追加)
-    mutate(sample = tryCatch(str_remove(barcode, "^.+-" ), error = function(e) { warning("Could not extract sample from barcode."); NA_character_ })) %>%
-    # 元の rownames を再設定
-    tibble::column_to_rownames("barcode")
 
-  seurat_object[["percent.mt"]] <- Seurat::PercentageFeatureSet(seurat_object, pattern = "^MT-") # Seurat::
-  seurat_object <- Seurat::NormalizeData(seurat_object)
-  seurat_object <- Seurat::FindVariableFeatures(seurat_object, selection.method = "vst", nfeatures = 2000)
-  all.genes <- rownames(seurat_object)
-  seurat_object <- Seurat::ScaleData(seurat_object, features = all.genes)
-  seurat_object <- Seurat::RunPCA(seurat_object, features = Seurat::VariableFeatures(object = seurat_object), npcs = 50)
-  # dims を適切に設定 (例: 1:30 など、データによる)
-  dims_to_use <- 1:min(30, ncol(seurat_object[['pca']]))
-  seurat_object <- Seurat::FindNeighbors(seurat_object, dims = dims_to_use)
-  seurat_object <- Seurat::FindClusters(seurat_object, resolution = 0.5)
-  seurat_object <- Seurat::RunUMAP(seurat_object, dims = dims_to_use)
-  seurat_object <- Seurat::RunTSNE(seurat_object, dims = dims_to_use) # 必要なら実行
-  myReactives$seurat_object <- seurat_object
-  myReactives$meta.data <- seurat_object@meta.data # 必要なら更新
-  return(myReactives)
-}
-
-# ★ addCelltype は外部スクリプトに依存するため注意が必要 ★
-addCelltype <- function(myReactives){
-  req(myReactives$seurat_object)
-  # source() は Shiny アプリ内での使用に注意（パスや環境の問題）
-  # 可能であれば、関数を直接 utils.R に記述するか、パッケージ化する
-  tryCatch({
-      source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_wrapper.R", local = TRUE); # local=TRUE で現在の環境に関数を読み込む
-      # run_sctype が環境内に存在するか確認
-      if(exists("run_sctype", mode="function")){
-           myReactives$seurat_object <- run_sctype(myReactives$seurat_object, assay = "RNA", scaled = TRUE, known_tissue_type="Immune system",custom_marker_file="https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/ScTypeDB_short.xlsx",name="sctype_classification")
-      } else {
-          warning("run_sctype function not found after sourcing script.")
-      }
-   }, error=function(e){
-       warning("Failed to source or run sctype: ", e$message)
-   })
-  return(myReactives)
-}
 
 # ★ dataframe_tcr/bcr は scRepertoire に依存 ★
 # scRepertoire なしで実装する場合は、read.csv と dplyr で必要な列を整形する必要がある

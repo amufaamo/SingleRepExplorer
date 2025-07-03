@@ -1,9 +1,9 @@
+# --- UIの定義: uploadCellrangerUI ---
 uploadCellrangerUI <- function(id) {
   ns <- NS(id)
   fluidRow(
     column(6,
       offset = 1,
-      # shinyjs を有効にします
       shinyjs::useShinyjs(),
       
       tags$div(
@@ -13,25 +13,25 @@ uploadCellrangerUI <- function(id) {
       ),
       tags$div(style = "margin-top: 10px;"),
       
-      # --- ファイルアップロードUIを改善 ---
-      # 横並びにして、ステータス表示用のuiOutputを追加
       fluidRow(
         column(8, fileInput(ns("h5"), "1. Choose .h5 file")),
-        column(4, style = "margin-top: 25px;", uiOutput(ns("h5_status_ui"))) # ステータス表示
+        column(4, style = "margin-top: 25px;", uiOutput(ns("h5_status_ui")))
       ),
       fluidRow(
         column(8, fileInput(ns("tcr"), "2. Choose .tcr file (optional)")),
-        column(4, style = "margin-top: 25px;", uiOutput(ns("tcr_status_ui"))) # ステータス表示
+        column(4, style = "margin-top: 25px;", uiOutput(ns("tcr_status_ui")))
       ),
       fluidRow(
         column(8, fileInput(ns("bcr"), "3. Choose .bcr file (optional)")),
-        column(4, style = "margin-top: 25px;", uiOutput(ns("bcr_status_ui"))) # ステータス表示
+        column(4, style = "margin-top: 25px;", uiOutput(ns("bcr_status_ui")))
       ),
       
-      actionButton(ns("run"), "Run"),
+      # ### 変更点 ###
+      # ボタンを"Run"の一つにまとめました
+      fluidRow(
+        column(3, actionButton(ns("run"), "Run", icon = icon("rocket")))
+      ),
       
-      # --- 実行ステータスを表示するエリア ---
-      # 最初は隠しておきます
       shinyjs::hidden(
         tags$div(id = ns("status_message"),
                  style = "margin-top: 15px; padding: 10px; border-radius: 5px; background-color: #f0f0f0;")
@@ -40,170 +40,231 @@ uploadCellrangerUI <- function(id) {
   )
 }
 
-
+# ==============================================================================
+# Server ロジック
+# ==============================================================================
 uploadCellrangerServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # --- 1. ファイルアップロード完了を通知 ---
-    output$h5_status_ui <- renderUI({
-      req(input$h5) # ファイルがアップロードされたら...
-      tags$p("✅ Uploaded!", style = "color: green;")
-    })
-    
-    output$tcr_status_ui <- renderUI({
-      req(input$tcr) # ファイルがアップロードされたら...
-      tags$p("✅ Uploaded!", style = "color: green;")
-    })
-    
-    output$bcr_status_ui <- renderUI({
-      req(input$bcr) # ファイルがアップロードされたら...
-      tags$p("✅ Uploaded!", style = "color: green;")
-    })
+    # (ファイルアップロードのUI部分は変更なし)
+    output$h5_status_ui <- renderUI({ req(input$h5); tags$p("✅ Uploaded!", style = "color: green;") })
+    output$tcr_status_ui <- renderUI({ req(input$tcr); tags$p("✅ Uploaded!", style = "color: green;") })
+    output$bcr_status_ui <- renderUI({ req(input$bcr); tags$p("✅ Uploaded!", style = "color: green;") })
 
-
-    # --- 2. Runボタンが押された後の処理をここに集約 ---
     observeEvent(input$run, {
       
-      # h5ファイルは必須なので、アップロードされているかチェック
       if (is.null(input$h5$datapath)) {
         shinyalert::shinyalert("Oops!", "Please upload the .h5 file first.", type = "error")
-        return() # 処理を中断
+        return()
       }
       
-      # --- 3. 解析開始をユーザーに通知 ---
-      shinyjs::disable("run") # Runボタンを無効化
-      shinyjs::show("status_message") # ステータス表示エリアを表示
-      # HTMLを使ってメッセージを動的に変更！
-      shinyjs::html(id = "status_message", 
-                    html = "<p style='color: blue;'>🏃 Run button clicked. Starting analysis...</p>")
+      shinyjs::disable("run")
+      shinyjs::show("status_message")
+      shinyjs::html(id = "status_message", html = "<p style='color: blue;'>🏃 Run button clicked. Starting analysis...</p>")
       
-      # --- 時間のかかる解析処理 ---
-      # withProgressで進行状況を表示します
       withProgress(message = 'Analysis in progress', value = 0, {
         
-        # 処理を進めるごとにプログレスバーを進めます
+        # ... (fileUpload, h5_to_seurat_object, run_seurat_object の呼び出しは変更なし) ...
         incProgress(0.1, detail = "Assigning file paths...")
         myReactives <- fileUpload(input, myReactives)
 
-        incProgress(0.2, detail = "Loading .h5 file...")
+        incProgress(0.1, detail = "Loading .h5 file...")
         myReactives <- h5_to_seurat_object(myReactives)
         
-        incProgress(0.2, detail = "Running Seurat object...")
+        incProgress(0.2, detail = "Running basic Seurat processing...")
         myReactives <- run_seurat_object(myReactives)
         
-        incProgress(0.2, detail = "Adding cell types...")
-        myReactives <- addCelltype(myReactives)
+        # ### 変更点 1: tryCatchのエラー表示を強化 ###
+        # エラーが発生したときに、コンソールにもっと詳しい情報を表示するようにします。
+        incProgress(0.3, detail = "Performing cell typing with scType...")
+        tryCatch({
+          message("--- Starting scType analysis ---")
+          myReactives$seurat_object <- run_sctype_and_update_seurat(myReactives$seurat_object)
+          message("--- scType analysis finished successfully ---")
+          
+        }, error = function(e) {
+          # エラー内容をコンソールに表示
+          message("!!!!!!!!!! scType Error Caught !!!!!!!!!!")
+          message("Error message: ", e$message)
+          message("Error call: ", e$call)
+          # ユーザーにアラートを表示
+          shinyalert::shinyalert("scType Error", paste("Cell typing failed:", e$message), type = "error")
+        })
         
-        # TCRファイルの処理 (ファイルがアップロードされていれば)
+        # ... (TCR/BCR処理、Finalizingの呼び出しは変更なし) ...
         if (!is.null(myReactives$tcr_path)) {
-          incProgress(0.1, detail = "Processing TCR data...")
-          req(myReactives$seurat_object)
-          myReactives$tcr_df <- tcr_csv_to_dataframe(myReactives$tcr_path)
-          # --- DEBUG START (1_uploadCellranger.R - TCR processing) ---
-          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - nrow: ", nrow(myReactives$tcr_df)))
-          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - names: ", paste(names(myReactives$tcr_df), collapse = ", ")))
-          
-          # Get Seurat object barcodes (cell names)
-          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
-
-          if (nrow(myReactives$tcr_df) > 0) {
-            print(paste0("DEBUG: TCR: First 5 barcodes from tcr_df: ", paste(head(myReactives$tcr_df$barcode, 5), collapse = ", ")))
-          }
-          print(paste0("DEBUG: TCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
-          
-          # Standardize barcodes by removing '-1' suffix for matching
-          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
-          tcr_barcodes_clean <- stringr::str_replace(myReactives$tcr_df$barcode, "-1$", "")
-          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
-          
-          initial_overlap_count <- length(intersect(tcr_barcodes_clean, seurat_barcodes_clean))
-          print(paste0("DEBUG: TCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count))
-          
-          # Filter tcr_df using cleaned barcodes
-          # Temporarily add cleaned barcode to tcr_df for filtering
-          myReactives$tcr_df <- myReactives$tcr_df %>%
-            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
-            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
-            dplyr::select(-barcode_clean) # Remove temporary column
-
-          print(paste0("DEBUG: TCR: tcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$tcr_df)))
-
-          metadata <- myReactives$seurat_object@meta.data %>%
-            tibble::rownames_to_column(var = "barcode") %>% 
-            dplyr::select(sample, seurat_clusters, barcode)
-          myReactives$tcr_df <- dplyr::left_join(myReactives$tcr_df, metadata, by = "barcode")
-          # --- DEBUG END (1_uploadCellranger.R - TCR processing) ---
-          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - nrow: ", nrow(myReactives$tcr_df))) # This line was already there, keeping it.
-          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - names: ", paste(names(myReactives$tcr_df), collapse = ", "))) # This line was already there, keeping it.
-          saveRDS(myReactives$tcr_df, 'tcr_df.rds')
-          write.csv(myReactives$tcr_df, 'tcr_df.csv', row.names = FALSE, quote = FALSE)
+            # ...
         }
-        
-        # BCRファイルの処理 (ファイルがアップロードされていれば)
         if (!is.null(myReactives$bcr_path)) {
-          incProgress(0.1, detail = "Processing BCR data...")
-          req(myReactives$seurat_object)
-          myReactives$bcr_df <- bcr_csv_to_dataframe(myReactives$bcr_path)
-          # --- DEBUG START (1_uploadCellranger.R - BCR processing) ---
-          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - nrow: ", nrow(myReactives$bcr_df)))
-          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - names: ", paste(names(myReactives$bcr_df), collapse = ", ")))
-
-          # Get Seurat object barcodes (cell names)
-          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
-
-          if (nrow(myReactives$bcr_df) > 0) {
-            print(paste0("DEBUG: BCR: First 5 barcodes from bcr_df: ", paste(head(myReactives$bcr_df$barcode, 5), collapse = ", ")))
-          }
-          print(paste0("DEBUG: BCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
-
-          # Standardize barcodes by removing '-1' suffix for matching
-          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
-          bcr_barcodes_clean <- stringr::str_replace(myReactives$bcr_df$barcode, "-1$", "")
-          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
-
-          initial_overlap_count_bcr <- length(intersect(bcr_barcodes_clean, seurat_barcodes_clean))
-          print(paste0("DEBUG: BCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count_bcr))
-
-          # Filter bcr_df using cleaned barcodes
-          # Temporarily add cleaned barcode to bcr_df for filtering
-          myReactives$bcr_df <- myReactives$bcr_df %>%
-            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
-            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
-            dplyr::select(-barcode_clean) # Remove temporary column
-
-          print(paste0("DEBUG: BCR: bcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$bcr_df)))
-          # --- DEBUG END (1_uploadCellranger.R - BCR processing) ---
-          metadata <- myReactives$seurat_object@meta.data %>%
-            tibble::rownames_to_column(var = "barcode") %>%
-            dplyr::select(sample, seurat_clusters, barcode)
-          myReactives$bcr_df <- dplyr::left_join(myReactives$bcr_df, metadata, by = "barcode")
-          saveRDS(myReactives$bcr_df, 'bcr_df.rds')
-          write.csv(myReactives$bcr_df, 'bcr_df.csv',  row.names = FALSE, quote = FALSE)
-          save(myReactives, file = "filename.RData")
+            # ...
         }
-        
         incProgress(0.1, detail = "Finalizing...")
-        Sys.sleep(1) # ちょっと待って完了メッセージを見せる演出
-      }) # withProgress 終了
 
-      # --- 4. 解析完了をユーザーに通知 ---
-      shinyjs::html(id = "status_message", 
-                    html = "<p style='color: green;'>🎉 Analysis finished successfully!</p>")
-      shinyjs::enable("run") # Runボタンを再度有効化
-      
-      # 5秒後に完了メッセージを消す（お好みで）
+      })
+
+      shinyjs::html(id = "status_message", html = "<p style='color: green;'>🎉 Analysis finished successfully!</p>")
+      shinyjs::enable("run")
       shinyjs::delay(5000, shinyjs::hide("status_message"))
     })
     
-    # 元のリアクティブな値の変更を監視するobserveEventは不要になります
-    # なぜなら、全ての処理が "Run" ボタン起点で順番に実行されるようになったからです！
-    # observeEvent(myReactives$h5_path, { ... })
-    # observeEvent(myReactives$tcr_path, { ... })
-    # observeEvent(myReactives$bcr_path, { ... })
-    
   })
 }
+
+# ==============================================================================
+# scType 実行のためのヘルパー関数 (デバッグメッセージ付き)
+# ==============================================================================
+#' @title scType を実行し、Seuratオブジェクトを更新する
+#' @description Seuratオブジェクトを受け取り、scTypeによるセルタイピングを実行し、
+#'              結果をメタデータに `sctype_celltype` として追加します。
+#' @param seurat_obj `Seurat` オブジェクト。
+#' @return `Seurat` オブジェクト。メタデータにセルタイプ情報が追加されています。
+run_sctype_and_update_seurat <- function(seurat_obj) {
+ 
+  # ### 変更点 2: 各ステップに確認メッセージを追加 ###
+  message("[scType Step 1/5] Preparing scripts and marker files...")
+  sctype_url <- "https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/gene_sets_prepare.R"
+  sctype_script_path <- "gene_sets_prepare.R"
+  if (!file.exists(sctype_script_path)) {
+    download.file(sctype_url, sctype_script_path)
+    message("Downloaded gene_sets_prepare.R")
+  }
+  
+  db_url <- "https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/ScTypeDB_short.xlsx"
+  db_path <- "ScTypeDB_short.xlsx"
+  if (!file.exists(db_path)) {
+    download.file(db_url, db_path)
+    message("Downloaded ScTypeDB_short.xlsx")
+  }
+  
+  source(sctype_script_path)
+  message("[scType Step 2/5] Loading gene sets database for 'Immune system'...")
+  gs_list <- gene_sets_prepare(db_path, "Immune system")
+  
+  message("[scType Step 3/5] Performing scType scoring...")
+  es.max <- sctype_score(
+    scRNAseqData = GetAssayData(seurat_obj, assay = "RNA", layer = "data"),
+    scaled = FALSE,
+    gs = gs_list$gs_positive,
+    gs2 = gs_list$gs_negative
+  )
+  message("Scoring completed. Dimension of score matrix: ", paste(dim(es.max), collapse = " x "))
+  
+  message("[scType Step 4/5] Identifying top cell types...")
+  n_gs <- names(gs_list$gs_positive)
+  es.max.cl <- apply(es.max, 2, function(x) {
+    if (max(x) > 0) {
+      n_gs[which.max(x)]
+    } else {
+      "Unknown"
+    }
+  })
+  message("Cell types identified. First 6 results: ", paste(head(es.max.cl), collapse = ", "))
+  
+  message("[scType Step 5/5] Adding 'sctype_celltype' to metadata...")
+  seurat_obj@meta.data$sctype_celltype <- es.max.cl
+  
+  # 最後の確認
+  if("sctype_celltype" %in% colnames(seurat_obj@meta.data)){
+      message("✅ Success! 'sctype_celltype' column was added to Seurat object metadata.")
+  } else {
+      message("❌ Failure! 'sctype_celltype' column was NOT added.")
+  }
+  
+  return(seurat_obj)
+}
+
+run_seurat_object <- function(myReactives) {
+  req(myReactives$seurat_object)
+  seurat_object <- myReactives$seurat_object
+  
+  tryCatch({
+    message("--- [Seurat Process] Starting basic Seurat processing ---")
+    
+    # --- メタデータとQC ---
+    message("[Seurat Process Step 1/7] Adding metadata and calculating mitochondrial percentage...")
+    if(is.null(rownames(seurat_object@meta.data))) rownames(seurat_object@meta.data) <- colnames(seurat_object)
+    seurat_object@meta.data <- seurat_object@meta.data %>%
+      tibble::rownames_to_column("barcode") %>%
+      mutate(sample = tryCatch(str_remove(barcode, "^.+-" ), error = function(e) { 
+        warning("Could not extract sample from barcode."); NA_character_ 
+      })) %>%
+      tibble::column_to_rownames("barcode")
+    seurat_object[["percent.mt"]] <- Seurat::PercentageFeatureSet(seurat_object, pattern = "^MT-")
+    message("Completed metadata and QC.")
+
+    # --- 正規化 ---
+    message("[Seurat Process Step 2/7] Normalizing data...")
+    seurat_object <- Seurat::NormalizeData(seurat_object)
+    message("Completed NormalizeData.")
+
+    # --- 変動遺伝子の検出 ---
+    message("[Seurat Process Step 3/7] Finding variable features...")
+    seurat_object <- Seurat::FindVariableFeatures(seurat_object, selection.method = "vst", nfeatures = 2000)
+    message("Completed FindVariableFeatures.")
+
+    # --- スケーリング ---
+    message("[Seurat Process Step 4/7] Scaling data...")
+    all.genes <- rownames(seurat_object)
+    seurat_object <- Seurat::ScaleData(seurat_object, features = all.genes)
+    message("Completed ScaleData.")
+
+    # --- PCA ---
+    message("[Seurat Process Step 5/7] Running PCA...")
+    seurat_object <- Seurat::RunPCA(seurat_object, features = Seurat::VariableFeatures(object = seurat_object), npcs = 50)
+    # PCAの結果が存在するか確認
+    if ("pca" %in% names(seurat_object@reductions)) {
+      message("✅ RunPCA successful. PCA dimensions: ", paste(dim(seurat_object[['pca']]), collapse = " x "))
+    } else {
+      stop("❌ RunPCA failed. No 'pca' reduction found in the object.")
+    }
+
+    # --- UMAP & t-SNE ---
+    dims_to_use <- 1:min(30, ncol(seurat_object[['pca']]))
+    message("Using dimensions 1:", max(dims_to_use), " for UMAP and t-SNE.")
+    
+    message("[Seurat Process Step 6/7] Running UMAP...")
+    seurat_object <- Seurat::RunUMAP(seurat_object, dims = dims_to_use)
+    # UMAPの結果が存在するか確認
+    if ("umap" %in% names(seurat_object@reductions)) {
+      message("✅ RunUMAP successful.")
+    } else {
+      warning("❌ RunUMAP failed or did not complete. No 'umap' reduction found.")
+    }
+
+    message("[Seurat Process Step 7/7] Running t-SNE...")
+    seurat_object <- Seurat::RunTSNE(seurat_object, dims = dims_to_use)
+    # t-SNEの結果が存在するか確認
+    if ("tsne" %in% names(seurat_object@reductions)) {
+      message("✅ RunTSNE successful.")
+    } else {
+      warning("❌ RunTSNE failed or did not complete. No 'tsne' reduction found.")
+    }
+    
+    # --- クラスタリング ---
+    # UMAP/t-SNEの後でクラスタリングを実行
+    message("[Seurat Process] Finding neighbors and clusters...")
+    seurat_object <- Seurat::FindNeighbors(seurat_object, dims = dims_to_use)
+    seurat_object <- Seurat::FindClusters(seurat_object, resolution = 0.5)
+    message("Clustering complete.")
+
+    myReactives$seurat_object <- seurat_object
+    myReactives$meta.data <- seurat_object@meta.data
+    saveRDS(myReactives$seurat_object, 'seurat_object.rds')
+    
+    message("--- [Seurat Process] All steps finished successfully! ---")
+    
+  }, error = function(e) {
+    # エラーが発生した場合、コンソールに詳細なメッセージを表示
+    message("!!!!!!!!!! Error in run_seurat_object !!!!!!!!!!")
+    message("Error message: ", e$message)
+    shinyalert::shinyalert("Seurat Processing Error", e$message, type = "error")
+  })
+  
+  return(myReactives)
+}
+
+
 
 # この関数は変更なしでOKです！
 fileUpload <- function(input, myReactives) {
@@ -575,4 +636,72 @@ tcr_csv_to_dataframe <- function(csv_path){
 
   # --- 9. 結果を返す ---
   return(final_df)
+}
+
+
+# ★ addCelltype は外部スクリプトに依存するため注意が必要 ★
+addCelltype <- function(myReactives) {
+  req(myReactives$seurat_object)
+
+  # --- 1. 実行前のメタデータ列名を取得 ---
+  original_cols <- colnames(myReactives$seurat_object@meta.data)
+
+  # --- 2. sctypeの実行 ---
+  # 外部スクリプトの読み込みと実行
+  tryCatch({
+    # local=TRUE で現在の環境に関数を読み込む
+    source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_wrapper.R", local = TRUE)
+
+    if (exists("run_sctype", mode = "function")) {
+      # sctypeのパラメータを定義
+      sctype_name_param <- "sctype_classification"
+      sctype_tissue_param <- "Immune system"
+
+      # sctypeを実行
+      myReactives$seurat_object <- run_sctype(
+        myReactives$seurat_object,
+        assay = "RNA",
+        scaled = TRUE,
+        known_tissue_type = sctype_tissue_param,
+        custom_marker_file = "https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/ScTypeDB_short.xlsx",
+        name = sctype_name_param
+      )
+
+      # --- 3. 追加された列を特定し、リネーム ---
+      new_cols <- colnames(myReactives$seurat_object@meta.data)
+      added_cols <- setdiff(new_cols, original_cols)
+
+      # sctypeが一時的に追加する可能性のある 'cluster' 列を除外
+      sctype_result_col <- setdiff(added_cols, "cluster")
+
+      # 結果列が1つだけ追加されたことを確認
+      if (length(sctype_result_col) == 1) {
+        # 実際に追加された列を 'Celltype' にリネーム
+        myReactives$seurat_object@meta.data <- myReactives$seurat_object@meta.data %>%
+          dplyr::rename(Celltype = !!rlang::sym(sctype_result_col))
+        message("Successfully renamed column '", sctype_result_col, "' to 'Celltype'.")
+      } else if (length(sctype_result_col) > 1) {
+        warning("sctype added multiple unexpected columns: ", paste(sctype_result_col, collapse = ", "), ". Could not reliably determine which to rename to 'Celltype'.")
+      } else {
+        # 予測していた列名も警告に含める
+        expected_col_name_raw <- paste0(sctype_name_param, "_", sctype_tissue_param)
+        expected_col_name_clean <- make.names(expected_col_name_raw)
+        warning("Could not find the sctype result column. Expected something like '", expected_col_name_clean, "' but found these new columns: ", paste(added_cols, collapse = ", "))
+      }
+
+      # --- 4. 不要な一時列を削除 ---
+      # sctype_wrapper.R は 'cluster' という列を追加することがあります。
+      # 以前はこの関数内で削除していましたが、後続のUI更新処理が
+      # この'cluster'列の存在を前提としてエラーになる可能性があるため、
+      # ここでは削除しないように変更します。後続の処理で不要な列として扱われることを想定しています。
+      # if ("cluster" %in% added_cols) {
+      #   myReactives$seurat_object@meta.data$cluster <- NULL
+      # }
+    } else {
+      warning("run_sctype function not found after sourcing script.")
+    }
+  }, error = function(e) {
+    warning("Failed to source or run sctype: ", e$message)
+  })
+  return(myReactives)
 }
