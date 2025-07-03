@@ -6,11 +6,11 @@
 # Group By を RadioButtons で更新する関数 (もし必要なら)
 update_group_by <- function(session, myReactives) {
   print('update_group_by (for RadioButtons)') # 関数名を明確化
-  # ★ dplyr::select と all_of() を使用 ★
-  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt", "RNA_snn_res.0.5")
+  # 除外する基本的なメタデータ列
+  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt")
   metadatas <- tryCatch({ # エラーハンドリング追加
     myReactives$seurat_object@meta.data %>%
-      dplyr::select(-all_of(minus_column)) %>%
+      dplyr::select(-any_of(minus_column), -starts_with("RNA_snn_res.")) %>% # any_ofで堅牢性を向上
       dplyr::select(!starts_with("TCR")) %>%
       dplyr::select(!starts_with("BCR"))
   }, error = function(e){
@@ -34,11 +34,11 @@ update_group_by <- function(session, myReactives) {
 # Group By を SelectInput で更新する関数
 update_group_by_select_input <- function(session, myReactives) {
   print('update_group_by_select_input') # 関数名を明確化
-  # ★ dplyr::select と all_of() を使用 ★
-  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt", "RNA_snn_res.0.5")
+  # 除外する基本的なメタデータ列
+  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt")
   metadatas <- tryCatch({ # エラーハンドリング追加
     myReactives$seurat_object@meta.data %>%
-      dplyr::select(-all_of(minus_column)) %>%
+      dplyr::select(-any_of(minus_column), -starts_with("RNA_snn_res.")) %>% # any_ofで堅牢性を向上
       dplyr::select(!starts_with("TCR")) %>%
       dplyr::select(!starts_with("BCR"))
    }, error = function(e){
@@ -66,12 +66,11 @@ update_group_by_for_dimplot <- function(session, myReactives) {
   req(myReactives$seurat_object) # Seuratオブジェクトが必要
 
   # 除外する列名
-  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt", "RNA_snn_res.0.5")
+  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt")
 
-  # ★ dplyr::select と all_of() を使用 ★
   metadatas <- tryCatch({ # エラーハンドリング追加
       myReactives$seurat_object@meta.data %>%
-        dplyr::select(-all_of(minus_column)) %>%
+        dplyr::select(-any_of(minus_column), -starts_with("RNA_snn_res.")) %>% # any_ofで堅牢性を向上
         dplyr::select(-starts_with("TCR_"), -starts_with("BCR_")) # TCR/BCR列を一旦除外（後で追加するため）
     }, error = function(e){
       warning("Error selecting metadata in update_group_by_for_dimplot: ", e$message)
@@ -153,11 +152,11 @@ update_unique_group_choices <- function(session, myReactives, group_by_col) {
 # マーカー遺伝子検索用に Group By と クラスター選択肢を更新する関数
 update_group_by_for_marker <- function(session, input, myReactives) {
   req(myReactives$seurat_object)
-  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt", "RNA_snn_res.0.5")
-  # ★ dplyr::select と all_of() を使用 ★
+  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt")
+
   metadatas <- tryCatch({
       myReactives$seurat_object@meta.data %>%
-        dplyr::select(-all_of(minus_column)) %>%
+        dplyr::select(-any_of(minus_column), -starts_with("RNA_snn_res.")) %>% # any_ofで堅牢性を向上
         dplyr::select(!starts_with("TCR")) %>%
         dplyr::select(!starts_with("BCR"))
     }, error = function(e){ warning("Error selecting metadata in update_group_by_for_marker: ", e$message); NULL })

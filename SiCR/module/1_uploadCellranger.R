@@ -29,7 +29,12 @@ uploadCellrangerUI <- function(id) {
       # ### 変更点 ###
       # ボタンを"Run"の一つにまとめました
       fluidRow(
-        column(3, actionButton(ns("run"), "Run", icon = icon("rocket")))
+        column(3, actionButton(ns("run"), "Run", icon = icon("rocket"))),
+        column(5,
+               shinyjs::hidden(
+                 downloadButton(ns("download_results"), "Download Results (.rds)")
+               )
+        )
       ),
       
       shinyjs::hidden(
@@ -59,6 +64,7 @@ uploadCellrangerServer <- function(id, myReactives) {
         return()
       }
       
+      shinyjs::hide("download_results") # 再実行時に備えてボタンを隠す
       shinyjs::disable("run")
       shinyjs::show("status_message")
       shinyjs::html(id = "status_message", html = "<p style='color: blue;'>🏃 Run button clicked. Starting analysis...</p>")
@@ -105,8 +111,23 @@ uploadCellrangerServer <- function(id, myReactives) {
 
       shinyjs::html(id = "status_message", html = "<p style='color: green;'>🎉 Analysis finished successfully!</p>")
       shinyjs::enable("run")
+      shinyjs::show("download_results") # 解析完了後にダウンロードボタンを表示
       shinyjs::delay(5000, shinyjs::hide("status_message"))
     })
+    
+    # 解析結果をダウンロードするためのハンドラ
+    output$download_results <- downloadHandler(
+      filename = function() {
+        paste0("SiCR_analysis_results_", Sys.Date(), ".rds")
+      },
+      content = function(file) {
+        # myReactivesはreactiveValuesオブジェクトなので、
+        # reactiveValuesToList()で通常のリストに変換してから保存するのが安全です。
+        # これにより、Shinyの依存関係なしにオブジェクトを保存できます。
+        results_to_save <- reactiveValuesToList(myReactives)
+        saveRDS(results_to_save, file = file)
+      }
+    )
     
   })
 }
