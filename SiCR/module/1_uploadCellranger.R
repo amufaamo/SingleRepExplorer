@@ -160,7 +160,10 @@ run_sctype_and_update_seurat <- function(seurat_obj) {
   
   source(sctype_script_path)
   message("[scType Step 2/5] Loading gene sets database for 'Immune system'...")
-  gs_list <- gene_sets_prepare(db_path, "Immune system")
+  # Suppress warnings from HGNChelper about non-approved gene symbols in the database
+  suppressWarnings({
+    gs_list <- gene_sets_prepare(db_path, "Immune system")
+  })
   
   message("[scType Step 3/5] Performing scType scoring...")
   es.max <- sctype_score(

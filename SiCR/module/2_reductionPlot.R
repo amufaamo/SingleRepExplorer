@@ -53,7 +53,7 @@ reductionPlotServer <- function(id, myReactives) {
     
     # プロットを生成する関数（他のプロットにも再利用可能）
     plot <- reactive({
-      req(myReactives$seurat_object)
+      req(myReactives$seurat_object, input$reduction) # FIX: Ensure input$reduction is not empty
       so <- myReactives$seurat_object
       so@meta.data$orig.ident <- NULL
       
@@ -98,7 +98,7 @@ reductionPlotServer <- function(id, myReactives) {
     
     # 座標テーブルの作成
     output$coordinates_table <- DT::renderDataTable({
-      req(myReactives$seurat_object)
+      req(myReactives$seurat_object, input$reduction) # FIX: Ensure input$reduction is not empty
       so <- myReactives$seurat_object
       
       # reductionに応じた座標を取得
@@ -128,7 +128,7 @@ reductionPlotServer <- function(id, myReactives) {
         paste0("coordinates_", input$reduction, "_", Sys.Date(), ".csv")
       },
       content = function(file) {
-        req(myReactives$seurat_object)
+        req(myReactives$seurat_object, input$reduction) # FIX: Ensure input$reduction is not empty
         so <- myReactives$seurat_object
         
         # reductionに応じた座標を取得
