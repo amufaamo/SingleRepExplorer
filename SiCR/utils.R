@@ -372,6 +372,50 @@ addTCRClonotypeIdToSeuratObject <- function(myReactives){
   return(myReactives)
 }
 
+addBCRClonotypeIdToSeuratObject <- function(myReactives){
+  req(myReactives$bcr_path, myReactives$seurat_object)
+  bcr <- tryCatch(read.csv(myReactives$bcr_path), error=function(e) {warning("Failed to read BCR file in addBCRClonotypeId: ", e$message); NULL})
+  req(bcr)
+  # ★ dplyr::select を使用 ★
+  bcr_select <- bcr %>%
+    dplyr::select(any_of(c("barcode", "raw_clonotype_id", "exact_subclonotype_id"))) %>% # any_of で存在しない列でもエラーにしない
+    distinct()
+  # 必要な列が存在するか確認
+  req("barcode" %in% names(bcr_select), "raw_clonotype_id" %in% names(bcr_select))
+
+  # 列名を変更（存在しない列は変更されない）
+  bcr_renamed <- bcr_select %>%
+     rename(BCR_raw_clonotype_id = raw_clonotype_id)
+  if ("exact_subclonotype_id" %in% names(bcr_renamed)) {
+      bcr_renamed <- bcr_renamed %>% rename(BCR_exact_subclonotype_id = exact_subclonotype_id)
+  }
+
+  # 元のメタデータを行名基準で結合できるように準備
+  seurat_meta <- myReactives$seurat_object@meta.data %>%
+    tibble::rownames_to_column("barcode_rownames") # 元のrownamesを保持
+
+  # barcode 列で結合 (barcode列がない場合は rownames で代用)
+  join_col <- if ("barcode" %in% names(seurat_meta)) "barcode" else "barcode_rownames"
+  if (!"barcode" %in% names(bcr_renamed)) {
+      warning("BCR data does not have 'barcode' column for joining.")
+      return(myReactives) # 結合できないのでそのまま返す
+  }
+
+  # 結合実行前に型を合わせる（推奨）
+  bcr_renamed$barcode <- as.character(bcr_renamed$barcode)
+  seurat_meta[[join_col]] <- as.character(seurat_meta[[join_col]])
+
+  # left_join
+  joined_meta <- dplyr::left_join(seurat_meta, bcr_renamed, by = setNames("barcode", join_col))
+
+  # rownamesを戻す
+  rownames(joined_meta) <- joined_meta$barcode_rownames
+  joined_meta$barcode_rownames <- NULL # 不要になった列を削除
+
+  myReactives$seurat_object@meta.data <- joined_meta
+  return(myReactives)
+}
+
 # addClonotypeIdToBCR は bcr_df が combineBCR のリスト形式である前提のようだが、
 # 他のコードでは tcr_df/bcr_df がデータフレームであることを期待しているため、
 # この関数の役割と bcr_df の期待される形式を見直す必要がある。

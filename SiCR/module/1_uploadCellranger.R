@@ -98,6 +98,35 @@ uploadCellrangerServer <- function(id, myReactives) {
           shinyalert::shinyalert("scType Error", paste("Cell typing failed:", e$message), type = "error")
         })
         
+        # # --- VDJメタデータの追加と細胞タイプの特定 ---
+        # incProgress(0.1, detail = "Adding VDJ information to metadata...")
+        # if (!is.null(myReactives$tcr_path)) {
+        #     message("--- Adding TCR clonotype info to Seurat metadata ---")
+        #     myReactives <- addTCRClonotypeIdToSeuratObject(myReactives)
+        # }
+        # if (!is.null(myReactives$bcr_path)) {
+        #     message("--- Adding BCR clonotype info to Seurat metadata ---")
+        #     myReactives <- addBCRClonotypeIdToSeuratObject(myReactives)
+        # }
+
+        # VDJ情報に基づいてT/B細胞を分類する列を追加
+        if ("TCR_raw_clonotype_id" %in% names(myReactives$seurat_object@meta.data) || "BCR_raw_clonotype_id" %in% names(myReactives$seurat_object@meta.data)) {
+          message("--- Creating VDJ_cell_type metadata column ---")
+          so <- myReactives$seurat_object
+          
+          so@meta.data <- so@meta.data %>%
+            mutate(
+              VDJ_cell_type = case_when(
+                "TCR_raw_clonotype_id" %in% names(.) && !is.na(TCR_raw_clonotype_id) ~ "T cell",
+                "BCR_raw_clonotype_id" %in% names(.) && !is.na(BCR_raw_clonotype_id) ~ "B cell",
+                TRUE ~ "other"
+              )
+            )
+          myReactives$seurat_object <- so
+          message("VDJ_cell_type column created. Summary:")
+          print(table(myReactives$seurat_object$VDJ_cell_type))
+        }
+
         # ... (TCR/BCR処理、Finalizingの呼び出しは変更なし) ...
         if (!is.null(myReactives$tcr_path)) {
                   incProgress(0.1, detail = "Processing TCR data...")
@@ -141,6 +170,40 @@ uploadCellrangerServer <- function(id, myReactives) {
           print(paste0("DEBUG: TCR: tcr_df after filter and left_join - names: ", paste(names(myReactives$tcr_df), collapse = ", "))) # This line was already there, keeping it.
           saveRDS(myReactives$tcr_df, 'tcr_df.rds')
           write.csv(myReactives$tcr_df, 'tcr_df.csv', row.names = FALSE, quote = FALSE)
+
+           # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        # ここからがご依頼の対応箇所です！
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        
+        # TCRデータが存在する場合、メタデータに'TCR'列を追加します
+        if (!is.null(myReactives$tcr_df) && nrow(myReactives$tcr_df) > 0) {
+            message("--- Adding 'TCR' column to Seurat metadata ---")
+            
+            # Seuratオブジェクトのバーコードを取得します
+            seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
+            
+            # tcr_dfに存在するバーコードを取得します
+            tcr_barcodes <- myReactives$tcr_df$barcode
+            
+            # SeuratのバーコードがTCRのバーコードリストに含まれているかどうかの論理ベクトルを作成します
+            is_tcr_cell <- seurat_barcodes %in% tcr_barcodes
+            
+            # 新しい'TCR'列をSeuratオブジェクトのメタデータに追加します
+            myReactives$seurat_object@meta.data$TCR <- is_tcr_cell
+            
+            # 結果のサマリーをコンソールに出力して確認します
+            message("'TCR' column added. Summary:")
+            print(table(myReactives$seurat_object@meta.data$TCR))
+        } else {
+            # tcr_df がない、または空の場合は、全てのセルをFALSEに設定します
+            message("--- No TCR data found, setting 'TCR' column to FALSE for all cells ---")
+            myReactives$seurat_object@meta.data$TCR <- FALSE
+            print(table(myReactives$seurat_object@meta.data$TCR))
+        }
+
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        # ご依頼の対応はここまでです！
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
  
         }
         if (!is.null(myReactives$bcr_path)) {
@@ -182,6 +245,41 @@ uploadCellrangerServer <- function(id, myReactives) {
           myReactives$bcr_df <- dplyr::left_join(myReactives$bcr_df, metadata, by = "barcode")
           saveRDS(myReactives$bcr_df, 'bcr_df.rds')
           write.csv(myReactives$bcr_df, 'bcr_df.csv',  row.names = FALSE, quote = FALSE)
+
+                  # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        # ここからがBCRのご依頼対応箇所です！
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        
+        # BCRデータが存在する場合、メタデータに'BCR'列を追加します
+        if (!is.null(myReactives$bcr_df) && nrow(myReactives$bcr_df) > 0) {
+            message("--- Adding 'BCR' column to Seurat metadata ---")
+            
+            # Seuratオブジェクトのバーコードを取得します
+            seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
+            
+            # bcr_dfに存在するバーコードを取得します
+            bcr_barcodes <- myReactives$bcr_df$barcode
+            
+            # SeuratのバーコードがBCRのバーコードリストに含まれているかどうかの論理ベクトルを作成します
+            is_bcr_cell <- seurat_barcodes %in% bcr_barcodes
+            
+            # 新しい'BCR'列をSeuratオブジェクトのメタデータに追加します
+            myReactives$seurat_object@meta.data$BCR <- is_bcr_cell
+            
+            # 結果のサマリーをコンソールに出力して確認します
+            message("'BCR' column added. Summary:")
+            print(table(myReactives$seurat_object@meta.data$BCR))
+        } else {
+            # bcr_df がない、または空の場合は、全てのセルをFALSEに設定します
+            message("--- No BCR data found, setting 'BCR' column to FALSE for all cells ---")
+            myReactives$seurat_object@meta.data$BCR <- FALSE
+            print(table(myReactives$seurat_object@meta.data$BCR))
+        }
+
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        # ご依頼の対応はここまでです！
+        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
                  # ### ✨ここが変更点です！✨ ###
         # myReactives（特別な箱）を、reactiveValuesToList()を使って
         # myReactives_list（普通のリスト）に変換します。
