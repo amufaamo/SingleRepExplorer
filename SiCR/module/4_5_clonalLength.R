@@ -5,16 +5,16 @@ cdrLengthDistUI <- function(id) {
     sidebarPanel(
       vdjType(ns),
       selectInput(ns("target_cdr_column"), "Target Column (for Length Calculation)",
-        choices = c("Select VDJ type first..." = ""), # Server側で設定
+        choices = c("Select VDJ type first..." = ""),
         selected = ""
       ),
       groupByInput(ns),
-      uiOutput(ns("filter_groups_ui")),
+      uiOutput(ns("filter_groups_ui")), # 重複していたものを1つに修正
 
       selectInput(ns("plot_type"), "Plot Type",
         choices = c(
-          "Dodged Bars" = "dodge", # グループ比較、横並び
-          "Stacked Bars" = "stack", # グループ比較、積み上げ
+          "Dodged Bars" = "dodge",
+          "Stacked Bars" = "stack",
           "Boxplot" = "boxplot"
         ),
         selected = "dodge"
@@ -26,13 +26,12 @@ cdrLengthDistUI <- function(id) {
           selected = "count"
         )
       ),
-      uiOutput(ns("filter_groups_ui")), # グループフィルターUI (動的に生成)
       conditionalPanel(
         condition = paste0("input['", ns("plot_type"), "'] != 'boxplot'"),
         checkboxInput(ns("horizontal"), "Horizontal Barplot", value = FALSE)
       ),
       hr(),
-      commonPlotOptions(ns) # 共通プロットオプション
+      commonPlotOptions(ns)
     ),
     mainPanel(
       h3("Plot"),
@@ -54,8 +53,10 @@ cdrLengthDistServer <- function(id, myReactives) {
     })
 
     observeEvent(input$vdj_type, {
+      req(input$vdj_type) # VDJタイプが選択されていることを確認
+      
       if (input$vdj_type == "tcr") {
-        req(myReactives$tcr_df) # 対応するデータフレームが必要
+        req(myReactives$tcr_df)
         target_choices_all <- c(
           "TCR Paired CTnt" = "TCR_pair_CTnt", "TCR Paired CTaa" = "TCR_pair_CTaa",
           "TCR TRA CDR3 aa" = "TCR_TRA_cdr3", "TCR TRA CDR3 nt" = "TCR_TRA_cdr3_nt",
@@ -63,20 +64,25 @@ cdrLengthDistServer <- function(id, myReactives) {
         )
         selected_choice <- "TCR_TRB_cdr3"
       } else if (input$vdj_type == "bcr") {
-        req(myReactives$bcr_df) # 対応するデータフレームが必要
+        req(myReactives$bcr_df)
         target_choices_all <- c(
           "BCR Paired CTnt" = "BCR_pair_CTnt", "BCR Paired CTaa" = "BCR_pair_CTaa",
           "BCR IGH CDR3 aa" = "BCR_IGH_cdr3", "BCR IGH CDR3 nt" = "BCR_IGH_cdr3_nt",
-          "BCR IGK CDR3 aa" = "BCR_IGK_cdr3", "BCR IGK CDR3 nt" = "BCR_IGK_cdr3_nt", # IGKも追加しておく
+          "BCR IGK CDR3 aa" = "BCR_IGK_cdr3", "BCR IGK CDR3 nt" = "BCR_IGK_cdr3_nt",
           "BCR IGL CDR3 aa" = "BCR_IGL_cdr3", "BCR IGL CDR3 nt" = "BCR_IGL_cdr3_nt"
         )
         selected_choice <- "BCR_IGH_cdr3"
+      } else {
+        target_choices_all <- c("Select VDJ type first..." = "")
+        selected_choice <- ""
       }
       updateSelectInput(session, "target_cdr_column", choices = target_choices_all, selected = selected_choice)
     })
 
-    # 2. Update Target Column Choices when VDJ Type changes
     reactive_df_raw <- reactive({
+      df <- NULL # 未定義エラーを防ぐためにNULLで初期化
+      req(input$vdj_type)
+      
       if (input$vdj_type == "tcr" && !is.null(myReactives$tcr_df)) {
         df <- myReactives$tcr_df
       } else if (input$vdj_type == "bcr" && !is.null(myReactives$bcr_df)) {
@@ -86,125 +92,113 @@ cdrLengthDistServer <- function(id, myReactives) {
     })
 
     table <- reactive({
-      req(reactive_df_raw())
+      # ★★★★★ 修正点 ★★★★★
+      # 計算に必要なデータと入力が揃っていることを確認
+      req(reactive_df_raw(), input$target_cdr_column)
+      
       target_col_sym <- sym(input$target_cdr_column)
 
       df <- reactive_df_raw() %>%
+        # 対象列にNAや空文字が含まれているとncharでエラーになることがあるため、除外する
+        filter(!is.na(!!target_col_sym) & !!target_col_sym != "") %>%
         mutate(
-          length = nchar(!!target_col_sym)
+          length = nchar(as.character(!!target_col_sym))
         )
+      
       df <- df %>% dplyr::select(input$group_by, length)
       df <- df %>%
         group_by(.data[[input$group_by]], length) %>%
         summarise(count = n(), .groups = "drop") %>%
         group_by(.data[[input$group_by]]) %>%
-        mutate(percentage = count / sum(count)) %>%
+        mutate(percentage = count / sum(count) * 100) %>% # パーセンテージ計算を修正
         ungroup()
       return(df)
     })
 
-       # 3. グループフィルタリングUIの生成
     output$filter_groups_ui <- renderUI({
       df <- reactive_df_raw()
-      req(df, input$group_by) # dfがNULLでないこと、group_byが指定されていること
+      req(df, input$group_by)
       grouping_var <- input$group_by
 
-      # NA/空文字は除外済み
-      available_groups <- sort(unique(df[[grouping_var]]))
+      available_groups <- df[[grouping_var]] %>% unique() %>% sort()
 
-      # 利用可能なグループがない場合はUIを表示しない
       validate(
-        need(length(available_groups) > 0, paste("No available groups found in column:", shQuote(grouping_var), "after removing NA/empty values."))
+        need(length(available_groups) > 0, paste("No available groups in column:", shQuote(grouping_var)))
       )
 
       checkboxGroupInput(session$ns("filter_groups"),
         label = paste("Filter", tools::toTitleCase(gsub("_", " ", grouping_var)), ":"),
         choices = available_groups,
-        selected = available_groups, # 初期状態は全て選択
+        selected = available_groups,
         inline = TRUE
       )
     })
 
-        # 4. フィルタリングされたデータフレーム
     table_filtered <- reactive({
       df <- table()
-      # UIが生成され、選択が存在することを要求
       req(df, input$group_by, input$filter_groups)
 
-      grouping_var <- input$group_by
-      selected_groups <- input$filter_groups
-
-      # 選択されたグループでフィルタリング (NA/空文字はないはず)
       df_filtered <- df %>%
-        dplyr::filter(.data[[grouping_var]] %in% selected_groups)
+        dplyr::filter(.data[[input$group_by]] %in% input$filter_groups)
 
-      # フィルタリング後にデータが残っているか確認
-      if (nrow(df_filtered) == 0) {
-        showNotification("No data remaining after filtering by selected groups.", type = "warning", duration = 5)
-        return(NULL)
-      }
+      validate(
+        need(nrow(df_filtered) > 0, "No data remaining after filtering. Please adjust filter.")
+      )
+      
       return(df_filtered)
     })
 
-    #boxplot用のデータフレーム
     boxplot_df <- reactive({
-      req(reactive_df_raw())
+      # ★★★★★ 修正点 ★★★★★
+      req(reactive_df_raw(), input$target_cdr_column)
+      
       target_col_sym <- sym(input$target_cdr_column)
 
       df <- reactive_df_raw() %>%
+        filter(!is.na(!!target_col_sym) & !!target_col_sym != "") %>%
         mutate(
-          length = nchar(!!target_col_sym)
+          length = nchar(as.character(!!target_col_sym))
         )
       df <- df %>% dplyr::select(input$group_by, length)
       
-      # UIが生成され、選択が存在することを要求
       req(df, input$group_by, input$filter_groups)
 
-      grouping_var <- input$group_by
-      selected_groups <- input$filter_groups
-
-      # 選択されたグループでフィルタリング (NA/空文字はないはず)
       df_filtered <- df %>%
-        dplyr::filter(.data[[grouping_var]] %in% selected_groups)
+        dplyr::filter(.data[[input$group_by]] %in% input$filter_groups)
 
-      # フィルタリング後にデータが残っているか確認
-      if (nrow(df_filtered) == 0) {
-        showNotification("No data remaining after filtering by selected groups.", type = "warning", duration = 5)
-        return(NULL)
-      }
+      validate(
+        need(nrow(df_filtered) > 0, "No data remaining after filtering. Please adjust filter.")
+      )
+      
       return(df_filtered)
     })
 
     output$plot <- renderPlot({
       req(table_filtered())
-      if (input$plot_type == "dodge" || input$plot_type == "stack") {
-        if (input$display_value == "count") {
-          p <-  table_filtered() %>% ggplot(aes(x = length, y = count, fill = .data[[input$group_by]]))
-        } else if (input$display_value == "percentage"){
-          p <-  table_filtered() %>% ggplot(aes(x = length, y = percentage, fill = .data[[input$group_by]]))
-        }
-        p <- p + geom_bar(stat = 'identity', position = input$plot_type) + 
-          labs(x = "Length", y = input$display_value, fill = input$group_by) +
-          theme_classic() + 
-          scale_y_continuous(expand = c( 0, 0 ))
-
-        # 横向きプロットの適用
-        if (input$horizontal) {
-          p <- p + ggplot2::coord_flip() +
-            ggplot2::theme(axis.text.y = ggplot2::element_text(angle = 0, hjust = 1, size = 10)) # 横向き用にy軸テキスト調整
-        }
-      } else if (input$plot_type == "boxplot"){
+      
+      p <- if (input$plot_type == "boxplot") {
         req(boxplot_df())
-        p <- boxplot_df() %>% ggplot(aes(x = .data[[input$group_by]], y = length, fill = .data[[input$group_by]])) +
+        boxplot_df() %>% ggplot(aes(x = .data[[input$group_by]], y = length, fill = .data[[input$group_by]])) +
           geom_boxplot() +
-          labs(x = input$group_by, y = "Length", fill = input$group_by) +
-          theme_classic()
+          labs(x = input$group_by, y = "Length", fill = input$group_by)
+      } else { # dodge or stack
+        y_val <- if(input$display_value == "count") "count" else "percentage"
+        p <- table_filtered() %>% ggplot(aes(x = length, y = .data[[y_val]], fill = .data[[input$group_by]])) +
+          geom_bar(stat = 'identity', position = input$plot_type) +
+          labs(x = "Length", y = tools::toTitleCase(y_val), fill = input$group_by) +
+          scale_y_continuous(expand = c(0, 0))
+
+        if (input$horizontal) {
+          p <- p + coord_flip()
+        }
+        p
       }
-      return(p)
+      
+      p + theme_classic()
     })
 
     output$table <- renderDT({
       table_filtered()
     })
-  }) # moduleServer end
-} # cdrLengthDistServer end
+  })
+}

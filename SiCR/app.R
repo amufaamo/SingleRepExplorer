@@ -258,14 +258,18 @@ ui <- navbarPage(
         "Summary Plot",
         summaryPlotUI("summary_plot"),
       ),
+      # tabPanel(
+      #   "Unique Clones",
+      #   uniqueClonesUI("unique_clones"),
+      # ),
+      # tabPanel(
+      #   "Gene Usage",
+      #   geneUsageUI("gene_usage"),
+      # ),
       tabPanel(
-        "Unique Clones",
-        uniqueClonesUI("unique_clones"),
-      ),
-      tabPanel(
-        "Gene Usage",
-        geneUsageUI("gene_usage"),
-      ),
+        "Analysis Plot",
+        analysisPlotUI("analysis_plot"),
+      ),      
       tabPanel(
         "Clonal Length",
         cdrLengthDistUI("cdr_length_dist"),
@@ -282,18 +286,18 @@ ui <- navbarPage(
         "Clonal Overlap",
         clonalOverlapUI("clonal_overlap"),
       ),
-      tabPanel(
-        "Clonal Proportion",
-        clonalProportionUI("clonal_proportion"),
-      ),
-      tabPanel(
-        "Antigen Prediction",
-        antigenPredictionUI("antigen_prediction"),
-      ),
-      tabPanel(
-        "Phylogenetic Tree",
-        phylogeneticTreeUI("phylogenetic_tree"),
-      ),
+    #   tabPanel(
+    #     "Clonal Proportion",
+    #     clonalProportionUI("clonal_proportion"),
+    #   ),
+    #   tabPanel(
+    #     "Antigen Prediction",
+    #     antigenPredictionUI("antigen_prediction"),
+    #   ),
+    #   tabPanel(
+    #     "Phylogenetic Tree",
+    #     phylogeneticTreeUI("phylogenetic_tree"),
+    #   ),
     ),
   )
 )
@@ -318,14 +322,15 @@ server <- function(input, output, session) {
   clonotypeInformationServer("clonotype_information", myReactives)
   summaryPlotServer('summary_plot', myReactives)
   uniqueClonesServer('unique_clones', myReactives)
-  geneUsageServer('gene_usage', myReactives)
+#  geneUsageServer('gene_usage', myReactives)
+  analysisPlotServer('analysis_plot', myReactives)
   cdrLengthDistServer('cdr_length_dist', myReactives)
   diversityAnalysisServer('diversity_analysis', myReactives)
   trackClonotypeServer('track_clonotype', myReactives)
   clonalOverlapServer("clonal_overlap", myReactives)
-  clonalProportionServer('clonal_proportion', myReactives)
-  antigenPredictionServer("antigen_prediction", myReactives)
-  phylogeneticTreeServer("phylogenetic_tree", myReactives)
+  # clonalProportionServer('clonal_proportion', myReactives)
+  # antigenPredictionServer("antigen_prediction", myReactives)
+  # phylogeneticTreeServer("phylogenetic_tree", myReactives)
 }
 
 # アプリケーションの実行

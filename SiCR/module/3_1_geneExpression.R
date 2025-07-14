@@ -138,6 +138,7 @@ geneExpressionUI <- function(id) {
 # }
 
 # Server
+# Server
 geneExpressionServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
 
@@ -154,10 +155,10 @@ geneExpressionServer <- function(id, myReactives) {
         server = TRUE
       )
       update_group_by_select_input(session, myReactives)
+      update_reduction_choices(session, myReactives)
     })
 
     # ---- 2. Runボタンなしで、プロットをリアクティブに生成 ----
-    # eventReactive を reactive に変更！
     plot <- reactive({
       # 入力値のバリデーション
       req(myReactives$seurat_object, input$gene, myReactives$available_genes)
@@ -176,8 +177,9 @@ geneExpressionServer <- function(id, myReactives) {
       
       # プロットタイプに応じて、必要な入力値が揃うまで待機
       req(
-        if (input$plot_type != "feature_plot") !is.null(input$group_by) else TRUE,
-        if (input$plot_type == "feature_plot") !is.null(input$reduction) else TRUE
+        # ★ 修正: !is.null() を外して直接評価するように変更
+        if (input$plot_type != "feature_plot") input$group_by else TRUE,
+        if (input$plot_type == "feature_plot") input$reduction else TRUE
       )
 
       # プロットタイプに応じてプロットを生成
@@ -240,4 +242,24 @@ geneExpressionServer <- function(id, myReactives) {
       }
     )
   })
+}
+
+
+# reductionPlotServerから持ってきたヘルパー関数
+# Seuratオブジェクトに存在するリダクション名を取得し、UIの選択肢を動的に更新する
+update_reduction_choices <- function(session, myReactives) {
+  ns <- session$ns
+  req(myReactives$seurat_object)
+
+  # Seuratオブジェクトからリダクション名（'pca', 'umap', 'tsne'など）を取得
+  reduction_names <- names(myReactives$seurat_object@reductions)
+
+  # UIで表示する名前（例: 'umap' -> 'UMAP'）と、サーバー側で使う値（'umap'）のペアを作成
+  choices <- stats::setNames(reduction_names, toupper(reduction_names))
+
+  # デフォルトの選択肢を決定（'umap'があればそれを、なければ最初のものを選択）
+  default_selection <- if ("umap" %in% reduction_names) "umap" else reduction_names[1]
+
+  # selectInputを更新
+  updateSelectInput(session, "reduction", choices = choices, selected = default_selection)
 }
