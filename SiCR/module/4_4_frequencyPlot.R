@@ -1,5 +1,5 @@
 # --- UI ---
-analysisPlotUI <- function(id) {
+frequencyPlotUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
     sidebarPanel(
@@ -79,7 +79,7 @@ analysisPlotUI <- function(id) {
 }
 
 # --- サーバー ---
-analysisPlotServer <- function(id, myReactives) {
+frequencyPlotServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
 
     # 'analysis_target' の選択に応じて処理を分岐

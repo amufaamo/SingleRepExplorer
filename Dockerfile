@@ -34,7 +34,7 @@ RUN echo "---> Installing Bioinformatics related packages from CRAN..." && \
 # --- 3.4: ggplot拡張とその他のユーティリティ ---
 # ggtreeを削除
 RUN echo "---> Installing ggplot extensions and other utilities..." && \
-    R -e "install.packages(c('ggnewscale', 'ggtreeExtra', 'ggpointdensity', 'viridis', 'ggExtra', 'ggalluvial', 'ComplexHeatmap'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')"
+    R -e "install.packages(c('ggvenn', 'ggnewscale', 'ggtreeExtra', 'ggpointdensity', 'viridis', 'ggExtra', 'ggalluvial', 'ComplexHeatmap'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')"
 
 # --- 3.5: BioconductorとGitHubパッケージのインストーラー (変更なし) ---
 RUN echo "---> Installing installer packages (BiocManager, remotes)..." && \
