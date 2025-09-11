@@ -1,12 +1,12 @@
 # .gitignore ファイルの内容
 
 # 大きなデータファイルを無視
-filename.RData
-seurat_object.rds
+#filename.RData
+#seurat_object.rds
 
 # もし特定の拡張子のファイルを全て無視したい場合
-# *.RData
-# *.rds
+SiCR/*.RData
+SiCR/*.rds
 
 # History files
 .Rhistory
