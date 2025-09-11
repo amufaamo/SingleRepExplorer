@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # --- UI Definition ---
 cdrLengthDistUI <- function(id) {
   ns <- NS(id)
@@ -49,6 +51,11 @@ cdrLengthDistUI <- function(id) {
 cdrLengthDistServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     observeEvent(myReactives$seurat_object, {
+      update_group_by_select_input(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
+      req(myReactives$seurat_object)
       update_group_by_select_input(session, myReactives)
     })
 

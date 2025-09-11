@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # このモジュールを動作させるには、以下のパッケージが必要です。
 # install.packages("ggvenn")
 # install.packages("DT")
@@ -47,6 +49,11 @@ publicClonotypeServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     # 1. 共通のリアクティブ要素 (既存コードから流用)
     observeEvent(myReactives$seurat_object, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
       req(myReactives$seurat_object)
       update_group_by_select_input(session, myReactives)
     })

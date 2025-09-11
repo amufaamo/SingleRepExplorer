@@ -31,32 +31,47 @@ update_group_by <- function(session, myReactives) {
   updateRadioButtons(session, "group_by", choices = group_cols, selected = selected_value)
 }
 
-# Group By を SelectInput で更新する関数
-update_group_by_select_input <- function(session, myReactives) {
-  print('update_group_by_select_input') # 関数名を明確化
-  # 除外する基本的なメタデータ列
-  minus_column <- c("orig.ident", "nCount_RNA", "nFeature_RNA", "barcode", "percent.mt")
-  metadatas <- tryCatch({ # エラーハンドリング追加
-    myReactives$seurat_object@meta.data %>%
-      dplyr::select(-any_of(minus_column), -starts_with("RNA_snn_res.")) %>% # any_ofで堅牢性を向上
-      dplyr::select(!starts_with("TCR")) %>%
-      dplyr::select(!starts_with("BCR"))
-   }, error = function(e){
-    warning("Error selecting metadata in update_group_by_select_input: ", e$message)
-    return(NULL)
+
+# Group By を SelectInput で更新する関数 (改善版)
+update_group_by_select_input <- function(session, myReactives, selected = NULL) {
+  print('update_group_by_select_input (improved)') # 実行確認用のメッセージ
+  req(myReactives$seurat_object)
+  
+  meta_data <- myReactives$seurat_object@meta.data
+
+  # --- 1. 型に基づくフィルタリング ---
+  # まず、グループ分けに適した「文字」「因子」「論理」型の列のみを候補とします。
+  # これにより、'nCount_RNA'のような数値データが自動的に除外されます。
+  is_categorical <- sapply(names(meta_data), function(col) {
+    is.character(meta_data[[col]]) || is.factor(meta_data[[col]]) || is.logical(meta_data[[col]])
   })
-  req(metadatas) # metadatasがNULLなら停止
+  potential_choices <- names(meta_data)[is_categorical]
 
-  metadata_cols <- names(metadatas)
-  validate(need(length(metadata_cols) > 0, "No suitable metadata columns found."))
+  # --- 2. 明示的な列の除外 ---
+  # 次に、元のコードの意図を汲み取り、不要な列を名前で除外します。
+  minus_column <- c("orig.ident", "barcode") # 除外したい列リスト
+  choices <- setdiff(potential_choices, minus_column)
+  
+  # さらに、特定の接頭辞を持つ列を除外します。
+  choices <- choices[!grepl("^(RNA_snn_res\\.|TCR|BCR)", choices)]
 
-  # リスト形式で選択肢を作成 (名前と値が同じ)
-  group_cols <- setNames(as.list(metadata_cols), metadata_cols)
+  validate(need(length(choices) > 0, "No suitable metadata columns found for grouping."))
 
-  # デフォルト選択を決定
-  selected_value <- if ("sample" %in% metadata_cols) "sample" else metadata_cols[1]
-
-  updateSelectInput(session, "group_by", choices = group_cols, selected = selected_value)
+  # --- 3. 選択項目の決定ロジック ---
+  # 'selected'引数が指定され、かつそれが選択肢リストに存在する場合、それを最優先で選択します。
+  # そうでない場合は、デフォルトの'sample'、もしくはリストの先頭を選択します。
+  selected_value <- if (!is.null(selected) && selected %in% choices) {
+    selected
+  } else if ("sample" %in% choices) {
+    "sample"
+  } else {
+    choices[1]
+  }
+  
+  # --- 4. UIの更新 ---
+  # 最終的な選択肢と選択項目で `selectInput` を更新します。
+  # これで "Rename/Regroup" 保存後の動作が修正されます。
+  updateSelectInput(session, "group_by", choices = choices, selected = selected_value)
 }
 
 # DimPlot 用に Group By を SelectInput で更新する関数 (TCR/BCR列を追加)

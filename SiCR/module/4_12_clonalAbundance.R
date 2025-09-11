@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # --- UI ---
 # UI部分は、軸スケールのラベルをより分かりやすく変更した以外は、元のままでOKです！
 clonalAbundancePlotUI <- function(id) {
@@ -38,6 +40,11 @@ clonalAbundancePlotServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     # 1. 共通のリアクティブ要素 (この部分は変更ありません)
     observeEvent(myReactives$seurat_object, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
       req(myReactives$seurat_object)
       update_group_by_select_input(session, myReactives)
     })

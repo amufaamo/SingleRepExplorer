@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # --- UI 関数定義 (デバッグ用・最小版) ---
 clonalOverlapUI <- function(id) {
     ns <- NS(id)
@@ -10,7 +12,8 @@ clonalOverlapUI <- function(id) {
         ),
         mainPanel(
             h3("Plot"),
-            plotOutput(ns("plot")), # プロットID変更
+            downloadButton(ns("download_plot"), "Download plot (.pdf)"),
+            plotOutput(ns("plot")),
             h3("Table"),
             DTOutput(ns("table")) # テーブルID変更
         ),
@@ -40,6 +43,11 @@ clonalOverlapServer <- function(id, myReactives) {
     })
 
     observeEvent(myReactives$seurat_object, {
+      update_group_by_select_input(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
+      req(myReactives$seurat_object)
       update_group_by_select_input(session, myReactives)
     })
 
@@ -227,42 +235,49 @@ clonalOverlapServer <- function(id, myReactives) {
             return(mat) # 行列のみを返す
         }) # reactive 終了
 
+        # --- プロットオブジェクトの生成 (reactive) ---
+        plot_obj <- reactive({
+            mat <- overlap_matrix_debug()
+            req(mat)
+            shiny::validate(shiny::need(is.matrix(mat) && all(dim(mat) > 0), "Overlap matrix is empty or invalid for plotting."))
+
+            df_plot_long <- tryCatch(
+                {
+                    as.data.frame(as.table(mat), stringsAsFactors = FALSE)
+                },
+                error = function(e) {
+                    showNotification(paste("Error converting matrix for plot:", e$message), type = "error")
+                    NULL
+                }
+            )
+            req(df_plot_long, cancelOutput = TRUE)
+
+            if (ncol(df_plot_long) == 3) {
+                colnames(df_plot_long) <- c("Group1", "Group2", "Value")
+            } else {
+                shiny::validate(shiny::need(FALSE, "Cannot create plot data from matrix conversion result."))
+            }
+
+            df_plot <- df_plot_long %>% mutate(Group1 = factor(Group1, levels = rownames(mat)), Group2 = factor(Group2, levels = colnames(mat)))
+            fill_limits <- c(0, 1)
+            p <- ggplot(df_plot, aes(x = Group1, y = Group2, fill = Value)) +
+                geom_tile(color = "grey50") +
+                scale_fill_viridis_c(option = "plasma", limits = fill_limits, na.value = "grey80", name = "Overlap") +
+                geom_text(aes(label = round(Value, 2)), color = "white", size = 3.5, na.rm = TRUE, check_overlap = TRUE) +
+                coord_fixed() +
+                labs(x = NULL, y = NULL, title = "Clonal Overlap Heatmap") +
+                theme_minimal(base_size = 11) +
+                theme(
+                    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+                    panel.grid = element_blank(),
+                    legend.position = input$legend %||% "right"
+                )
+            return(p)
+        })
+
         # --- プロット出力 ---
         output$plot <- renderPlot(
-            {
-                mat <- overlap_matrix_debug()
-                req(mat)
-                # ★★★ shiny::validate と shiny::need を使用 ★★★
-                shiny::validate(shiny::need(is.matrix(mat) && all(dim(mat) > 0), "Overlap matrix is empty or invalid for plotting."))
-                # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                df_plot_long <- tryCatch(
-                    {
-                        as.data.frame(as.table(mat), stringsAsFactors = FALSE)
-                    },
-                    error = function(e) {
-                        showNotification(paste("Error converting matrix for plot:", e$message), type = "error")
-                        NULL
-                    }
-                )
-                req(df_plot_long, cancelOutput = TRUE)
-                # ★★★ shiny::validate と shiny::need を使用 ★★★
-                if (ncol(df_plot_long) == 3) {
-                    colnames(df_plot_long) <- c("Group1", "Group2", "Value")
-                } else {
-                    shiny::validate(shiny::need(FALSE, "Cannot create plot data from matrix conversion result."))
-                }
-                # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-                df_plot <- df_plot_long %>% mutate(Group1 = factor(Group1, levels = rownames(mat)), Group2 = factor(Group2, levels = colnames(mat)))
-                fill_limits <- c(0, 1)
-                ggplot(df_plot, aes(x = Group1, y = Group2, fill = Value)) +
-                    geom_tile(color = "grey50") +
-                    scale_fill_viridis_c(option = "plasma", limits = fill_limits, na.value = "grey80", name = "Overlap") +
-                    geom_text(aes(label = round(Value, 2)), color = "white", size = 3.5, na.rm = TRUE, check_overlap = TRUE) +
-                    coord_fixed() +
-                    labs(x = NULL, y = NULL, title = "Clonal Overlap Heatmap (Debug - Sample, raw_id, Overlap)") +
-                    theme_minimal(base_size = 11) +
-                    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1), panel.grid = element_blank())
-            },
+            { plot_obj() },
             width = reactive(input$plot_width %||% 600),
             height = reactive(input$plot_height %||% 500)
         )
@@ -271,15 +286,23 @@ clonalOverlapServer <- function(id, myReactives) {
         output$table <- renderDT({
             mat <- overlap_matrix_debug()
             req(mat)
-            # ★★★ shiny::validate と shiny::need を使用 ★★★
             shiny::validate(shiny::need(is.matrix(mat) || is.data.frame(mat), "Overlap result is not a matrix/dataframe for table."))
-            # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
             display_df <- as.data.frame(mat) %>%
                 rownames_to_column("Group") %>%
                 mutate(across(where(is.numeric), ~ round(., 3)))
             datatable(display_df, rownames = FALSE, options = list(scrollX = TRUE, pageLength = min(10, nrow(mat))))
         })
 
-        # --- ダウンロード機能は削除 ---
+        # --- PDFダウンロード機能 ---
+        output$download_plot <- downloadHandler(
+            filename = function() {
+                paste0("clonal_overlap_", input$group_by, "_", input$clone_identifier_column, ".pdf")
+            },
+            content = function(file) {
+                p <- plot_obj()
+                req(p)
+                ggsave(file, plot = p, width = (input$plot_width %||% 600) / 72, height = (input$plot_height %||% 500) / 72, device = "pdf", dpi = 300)
+            }
+        )
     }) # moduleServer 終了
 } # clonalOverlapServer_debug 終了

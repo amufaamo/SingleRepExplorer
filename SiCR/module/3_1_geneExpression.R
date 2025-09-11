@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # UI
 geneExpressionUI <- function(id) {
   ns <- NS(id)
@@ -156,6 +158,11 @@ geneExpressionServer <- function(id, myReactives) {
       )
       update_group_by_select_input(session, myReactives)
       update_reduction_choices(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
     })
 
     # ---- 2. Runボタンなしで、プロットをリアクティブに生成 ----

@@ -55,7 +55,8 @@ RUN echo "---> Installing phantomjs for webshot..." && \
     R -e "webshot::install_phantomjs()"
 
 # STEP 4: アプリケーションファイルのコピー
-COPY SiCR/ /srv/shiny-server/SiCR/
+# COPY SiCR/ /srv/shiny-server/SiCR/
+COPY SiCR/ /srv/shiny-server/
 
 # STEP 5: ポートの開放
 EXPOSE 3838

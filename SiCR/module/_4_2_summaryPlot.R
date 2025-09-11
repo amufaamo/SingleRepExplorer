@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # --- UI ---
 summaryPlotUI <- function(id) {
   ns <- NS(id)
@@ -45,6 +47,11 @@ summaryPlotServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     # Seuratオブジェクトが変更されたらGroup byの選択肢を更新
     observeEvent(myReactives$seurat_object, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
       req(myReactives$seurat_object)
       update_group_by_select_input(session, myReactives)
     })

@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # --- UI ---
 frequencyPlotUI <- function(id) {
   ns <- NS(id)
@@ -29,14 +31,13 @@ frequencyPlotUI <- function(id) {
       ),
 
       # --- プロット関連の設定 ---
-      # 4. プロットタイプの選択
-      # Note: サーバー側で`analysis_target`に応じて選択肢を更新することを推奨
+      # 4. プロットタイプの選択 (HeatmapはClonotype/Gene Usageの両方で利用可能)
       selectInput(ns("plot_type"), "Plot Type",
                   choices = c(
                     "Barplot (Dodged)" = "dodged",
                     "Barplot (Stacked)" = "stacked",
-                    "Barplot (Normal)" = "normal",
-                    "Heatmap" = "heatmap" # Gene Usageでのみ利用
+                    "Barplot (Normal)" = "normal", # Clonotype Frequencyでのみ利用
+                    "Heatmap" = "heatmap"
                   ),
                   selected = "dodged"),
                   
@@ -89,6 +90,11 @@ frequencyPlotServer <- function(id, myReactives) {
 
         # Seuratオブジェクトが変更されたらGroup byの選択肢を更新
         observeEvent(myReactives$seurat_object, {
+          req(myReactives$seurat_object)
+          update_group_by_select_input(session, myReactives)
+        })
+        
+        observeEvent(myReactives$grouping_updated, {
           req(myReactives$seurat_object)
           update_group_by_select_input(session, myReactives)
         })
@@ -221,7 +227,7 @@ frequencyPlotServer <- function(id, myReactives) {
                 dplyr::mutate(percentage = ifelse(total_cells_original == 0, 0, n / total_cells_original)) %>%
                 dplyr::mutate(raw_clonotype_id = factor(raw_clonotype_id, levels = .$raw_clonotype_id))
           # --- Stacked/Dodged Plot ---
-          } else if (input$plot_type %in% c("stacked", "dodged")) {
+          } else if (input$plot_type %in% c("stacked", "dodged", "heatmap")) {
               counts_by_group_raw <- df_filtered %>%
                 dplyr::count(raw_clonotype_id, .data[[grouping_var]], name = "n") %>%
                 dplyr::rename(group_col = .data[[grouping_var]])
@@ -321,11 +327,16 @@ frequencyPlotServer <- function(id, myReactives) {
               y_label <- "Frequency (Number of Cells)"
               y_scale <- ggplot2::scale_y_continuous(expand = expansion(mult = c(0, 0.05)))
           } else { # percentage
-              y_var <- "percentage"
-              if (input$plot_type == "normal") {
-                  y_label <- "Frequency (% of Original Total)"
-              } else {
+              y_var <- "percentage" # デフォルト
+              y_label <- "Frequency (%)" # デフォルト
+              
+              # プロットタイプに応じてY軸ラベルを詳細化
+              if (input$plot_type == "heatmap") {
                   y_label <- paste("Frequency (% within Original", tools::toTitleCase(gsub("_", " ", grouping_var)), ")")
+              } else if (input$plot_type == "normal") {
+                  y_label <- "Frequency (% of Original Total)" # Normalは全体比率
+              } else if (input$plot_type %in% c("stacked", "dodged")) {
+                  y_label <- paste("Frequency (% within Original", tools::toTitleCase(gsub("_", " ", grouping_var)), ")") # Stacked/Dodgedはグループ内比率
               }
               y_scale <- ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 0.1), expand = expansion(mult = c(0, 0.05)))
           }
@@ -333,7 +344,9 @@ frequencyPlotServer <- function(id, myReactives) {
           p <- ggplot2::ggplot(plot_data)
           fill_label <- if (input$plot_type %in% c("stacked", "dodged")) {
               tools::toTitleCase(gsub("_", " ", grouping_var))
-          } else {
+          } else if (input$plot_type == "heatmap") {
+              if(input$display_value == "count") "Count" else "Percentage"
+          }else {
               NULL
           }
           
@@ -351,6 +364,31 @@ frequencyPlotServer <- function(id, myReactives) {
               } else { # dodged
                   p <- p + ggplot2::geom_bar(stat = "identity", position = ggplot2::position_dodge(preserve = "single"))
               }
+          } else if (input$plot_type == "heatmap") {
+              validate(need("group_col" %in% names(plot_data) && length(levels(plot_data$group_col)) > 0,
+                          "Heatmap requires grouped data (select a grouping variable)."))
+              
+              fill_var <- if(input$display_value == "count") "n" else "percentage"
+              
+              y_levels <- levels(plot_data$raw_clonotype_id)
+              x_levels <- levels(plot_data$group_col)
+              validate(need(length(y_levels)>0 && length(x_levels)>0, "Cannot determine axes for heatmap."))
+
+              p <- ggplot2::ggplot(plot_data, aes(x = group_col, y = raw_clonotype_id, fill = .data[[fill_var]])) +
+                  ggplot2::geom_tile(color = "grey85", linewidth = 0.2) +
+                  ggplot2::scale_y_discrete(limits = rev(y_levels)) +
+                  ggplot2::scale_x_discrete(limits = x_levels, position = "bottom") +
+                  ggplot2::scale_fill_gradient(low = "white", high = "steelblue", name = fill_label,
+                                             labels = if(fill_var == "percentage") scales::percent else waiver(),
+                                             guide = guide_colorbar(barwidth = 0.8, barheight = 10)) +
+                  ggplot2::theme_minimal(base_size = 11) +
+                  ggplot2::theme(
+                      axis.text.x = element_text(angle = 45, hjust = 1, size=9),
+                      axis.text.y = element_text(size = 8),
+                      axis.ticks = element_blank(),
+                      panel.grid = element_blank(),
+                      plot.title = element_text(hjust = 0.5, face = "bold")
+                  )
           }
           
           plot_title <- paste("Top", input$top_n, "Clonotype Frequencies")
@@ -358,30 +396,34 @@ frequencyPlotServer <- function(id, myReactives) {
           if (!is.null(all_groups_original) && length(input$filter_groups) < length(all_groups_original)) {
               plot_title <- paste(plot_title, "(Groups Filtered)")
           }
-
-          p <- p +
-            ggplot2::scale_x_discrete(limits = levels(plot_data$raw_clonotype_id)) +
-            ggplot2::theme_classic(base_size = 14) +
-            ggplot2::theme(
-                axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
-                axis.title = ggplot2::element_text(size = 12),
-                plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5),
-            ) +
-            theme(legend.position = input$legend) +
-            y_scale +
-            ggplot2::labs(
-                title = plot_title,
-                x = "Raw Clonotype ID",
-                y = y_label,
-                fill = fill_label
-            )
-
-          if (input$horizontal) {
-              p <- p + ggplot2::coord_flip() +
-              ggplot2::theme(axis.text.y = ggplot2::element_text(angle = 0, hjust = 1, size = 10))
+          
+          # Barplot系の共通設定
+          if (input$plot_type != "heatmap") {
+            p <- p +
+              ggplot2::scale_x_discrete(limits = levels(plot_data$raw_clonotype_id)) +
+              ggplot2::theme_classic(base_size = 14) +
+              ggplot2::theme(
+                  axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+                  axis.title = ggplot2::element_text(size = 12),
+                  plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5),
+              ) +
+              theme(legend.position = input$legend) +
+              y_scale +
+              ggplot2::labs(
+                  title = plot_title,
+                  x = "Raw Clonotype ID",
+                  y = y_label,
+                  fill = fill_label
+              )
+            if (input$horizontal) {
+                p <- p + ggplot2::coord_flip() +
+                ggplot2::theme(axis.text.y = ggplot2::element_text(angle = 0, hjust = 1, size = 10))
+            }
+          } else { # Heatmapの共通設定
+            p <- p + theme(legend.position = input$legend) + labs(title = plot_title, x = tools::toTitleCase(gsub("_", " ", grouping_var)), y = "Raw Clonotype ID")
           }
           
-          if (input$plot_type %in% c("stacked", "dodged")) {
+          if (input$plot_type %in% c("stacked", "dodged")) { # Heatmapは独自の色スケールなので除外
               all_groups <- tryCatch(sort(unique(reactive_df_raw()[[grouping_var]])), error = function(e) NULL)
               if (!is.null(all_groups) && length(all_groups) > 0) {
                   color_palette <- scales::hue_pal()(length(all_groups))

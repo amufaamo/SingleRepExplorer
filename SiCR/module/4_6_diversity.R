@@ -24,7 +24,8 @@ diversityAnalysisUI <- function(id) {
       tabsetPanel(
         # ★★★ タブのタイトルを汎用的に変更 ★★★
         tabPanel("Diversity Plot",
-                 plotOutput(ns("shannonPlot"), height = "500px")
+                 downloadButton(ns("downloadPlot"), "Download Plot (.pdf)"),
+                 plotOutput(ns("shannonPlot"))
         ),
         tabPanel("Diversity Table",
                  DTOutput(ns("resultsTable"))
@@ -37,6 +38,16 @@ diversityAnalysisUI <- function(id) {
 diversityAnalysisServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    observeEvent(myReactives$seurat_object, {
+      # Seuratオブジェクトが変更されたらGroup byの選択肢を更新
+      update_group_by_select_input(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
+    })
 
     # --- リアクティブ: データソースの選択 ---
     # (この部分は変更ありません)
@@ -114,58 +125,65 @@ diversityAnalysisServer <- function(id, myReactives) {
     }) |> bindEvent(input$vdj_type, reactive_data(), ignoreNULL = FALSE, ignoreInit = FALSE)
 
     
-    # --- リアクティブ: 解析結果の計算 (★★★ バグを修正したコード ★★★) ---
+    # --- リアクティブ: 解析結果の計算 ---
     analysis_results <- reactive({
       # 必要な入力が存在することを確認
       req(input$target_gene_column, nzchar(input$target_gene_column),
           input$group_by, nzchar(input$group_by),
-          input$diversity_index)
+          input$diversity_index,
+          myReactives$seurat_object)
+
       df <- reactive_data()
       req(df)
+      so <- myReactives$seurat_object
+      group_col <- input$group_by
+
+      # --- Grouping列をSeurat Objectのメタデータからマージ ---
+      if (!group_col %in% colnames(df)) {
+        seurat_meta <- so@meta.data
+        validate(need(group_col %in% colnames(seurat_meta),
+                      paste("選択されたグループ列 '", group_col, "' がSeuratオブジェクトのメタデータに存在しません。")))
+        seurat_meta$barcode <- rownames(seurat_meta)
+        meta_to_merge <- seurat_meta[, c("barcode", group_col), drop = FALSE]
+        df <- dplyr::left_join(df, meta_to_merge, by = "barcode")
+      }
 
       clone_id_col <- input$target_gene_column
-      group_col <- input$group_by
-      index_method <- input$diversity_index # 例: "shannon"
+      index_method <- input$diversity_index
 
-      # --- ★★★ 修正点1: 正しい名前のルックアップ方法 ★★★ ---
-      # UIのchoicesで定義した名前と値の対応関係をここで定義します
       index_lookup <- c(
         "Shannon" = "shannon",
         "Simpson" = "simpson",
         "Inverse Simpson" = "invsimpson",
         "Chao1 (推定種数)" = "chao1"
       )
-      # サーバーに渡ってきた値（例: "shannon"）から、UI上の表示名（例: "Shannon"）を検索します
       index_display_name <- names(index_lookup)[which(index_lookup == index_method)]
-      
-      # 安全対策：もし名前が見つからなければ処理を停止
       validate(need(length(index_display_name) > 0, "多様性指数の表示名が見つかりません。"))
 
-      # 正しく取得した表示名で通知を表示
       showNotification(paste(index_display_name, "Index 計算中..."), id="calc_diversity", duration=NULL, type="message")
 
       # --- 列の存在チェック ---
       validate(need(clone_id_col %in% colnames(df), paste("クローンID列 '", clone_id_col, "' がデータに存在しません。")))
       validate(need(group_col %in% colnames(df), paste("グループ列 '", group_col, "' がデータに存在しません。")))
-      validate(need("sample" %in% colnames(df), "'sample' 列がデータに含まれていません。"))
 
       # --- 計算準備 (abundance_matrix の作成) ---
-      sample_metadata <- df %>%
-        dplyr::select(sample, !!sym(group_col)) %>%
-        mutate(sample = as.character(sample)) %>%
-        distinct(sample, .keep_all = TRUE)
-      
+      # NA値を含む行をフィルタリングし、グループごとのクローン数を計算
       count_matrix_long <- df %>%
-        mutate(sample = as.character(sample)) %>%
-        filter(!is.na(.data[[clone_id_col]])) %>%
-        group_by(sample, !!sym(clone_id_col)) %>%
+        filter(!is.na(.data[[clone_id_col]]) & !is.na(.data[[group_col]])) %>%
+        group_by(!!sym(group_col), !!sym(clone_id_col)) %>%
         summarise(count = n(), .groups = 'drop')
-      
+
+      # グループが1つもない場合は停止
+      validate(need(nrow(count_matrix_long) > 0, "計算対象のデータがありません。グループまたはクローンID列を確認してください。"))
+
+      # ワイドフォーマットに変換
       count_matrix_wide <- count_matrix_long %>%
         pivot_wider(names_from = !!sym(clone_id_col), values_from = count, values_fill = 0)
-      
-      abundance_matrix <- count_matrix_wide %>% dplyr::select(-sample) %>% as.matrix()
-      rownames(abundance_matrix) <- count_matrix_wide$sample
+
+      # abundance_matrixを作成
+      abundance_matrix <- as.matrix(count_matrix_wide[, -1])
+      # group_col列の値をrownamesに設定
+      rownames(abundance_matrix) <- count_matrix_wide[[group_col]]
 
       # --- 多様性指数の計算 ---
       index_scores <- tryCatch({
@@ -187,28 +205,22 @@ diversityAnalysisServer <- function(id, myReactives) {
         req(FALSE, cancelOutput = TRUE)
       }
 
-      # --- ★★★ 修正点2: 正しい表示名を列名として使用 ★★★ ---
-      # 結果をデータフレームに整形します
-      results_df <- data.frame(sample = as.character(rownames(abundance_matrix)))
-      # ここで正しく取得した表示名を列名として設定します (エラー発生箇所でした)
-      results_df[[index_display_name]] <- index_scores
-      
-      results_df <- results_df %>%
-        left_join(sample_metadata, by = "sample")
+      # --- 結果をデータフレームに整形 ---
+      results_df <- data.frame(Group = rownames(abundance_matrix), Score = index_scores, row.names = NULL)
+      colnames(results_df) <- c(group_col, index_display_name)
 
       removeNotification(id="calc_diversity")
-      
+
       # 結果をリストで返します
-      return(list(results = results_df, index_name = index_display_name))
+      return(list(results = results_df, index_name = index_display_name, group_col = group_col))
     })
 
     # --- 出力: 結果テーブル ---
-    # (この部分は変更ありません)
     output$resultsTable <- renderDT({
       res_list <- analysis_results()
       req(res_list, res_list$results)
 
-      group_col_name <- input$group_by %||% "Group"
+      group_col_name <- res_list$group_col
       index_col_name <- res_list$index_name
 
       display_df <- res_list$results %>%
@@ -218,17 +230,17 @@ diversityAnalysisServer <- function(id, myReactives) {
                 options = list(pageLength = 10, scrollX = TRUE, autoWidth = TRUE,
                                dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel')),
                 rownames = FALSE,
-                caption = paste("各サンプルの", index_col_name, "Index とグループ情報"))
+                caption = paste(index_col_name, "Index (Grouped by", tools::toTitleCase(gsub("_", " ", group_col_name)), ")"))
     })
 
     # --- 出力: 多様性プロット ---
-    # (この部分は変更ありません)
     output$shannonPlot <- renderPlot({
       res_list <- analysis_results()
       req(res_list, res_list$results)
 
-      group_col <- input$group_by
+      group_col <- res_list$group_col
       index_col_name <- res_list$index_name
+      
       validate(need(group_col %in% names(res_list$results), paste("グループ列 '", group_col, "' が結果に存在しません。")))
       validate(need(index_col_name %in% names(res_list$results), paste("指数列 '", index_col_name, "' が結果に存在しません。")))
 
@@ -236,27 +248,63 @@ diversityAnalysisServer <- function(id, myReactives) {
         filter(!is.na(.data[[index_col_name]]) & !is.na(.data[[group_col]]))
       validate(need(nrow(plot_data) > 0, paste("表示する有効な", index_col_name, "score がありません。")))
 
-      plot_data <- plot_data %>%
-        arrange(.data[[group_col]], sample) %>%
-        mutate(sample = factor(sample, levels = unique(sample)))
+      # グループ列をファクターに変換してプロットの順序を制御
+      plot_data[[group_col]] <- factor(plot_data[[group_col]], levels = unique(plot_data[[group_col]]))
 
-      ggplot(plot_data, aes(x = sample, y = .data[[index_col_name]], fill = .data[[group_col]])) +
+      ggplot(plot_data, aes(x = .data[[group_col]], y = .data[[index_col_name]], fill = .data[[group_col]])) +
         geom_bar(stat = "identity", width = 0.8) +
         labs(
           y = paste("Index Score (", index_col_name, ")"),
-          x = "Sample",
-          title = paste(index_col_name, "Index per Sample"),
+          x = tools::toTitleCase(gsub("_", " ", group_col)),
+          title = paste(index_col_name, "Index per", tools::toTitleCase(gsub("_", " ", group_col))),
           fill = tools::toTitleCase(gsub("_", " ", group_col))
         ) +
         theme_minimal(base_size = 14) +
         theme(
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
           axis.ticks.x = element_blank(),
           panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
-          legend.position = "right"
+          legend.position = input$legend
         )
-    }, res = 96)
+    }, 
+    res = 96,
+    width = reactive(input$plot_width),
+    height = reactive(input$plot_height)
+    )
+
+    # --- 出力: プロットダウンロード ---
+    output$downloadPlot <- downloadHandler(
+      filename = function() {
+        res_list <- analysis_results()
+        req(res_list)
+        paste0("DiversityPlot_", res_list$index_name, "_by_", res_list$group_col, "_", Sys.Date(), ".pdf")
+      },
+      content = function(file) {
+        # renderPlot内のコードを再利用してプロットオブジェクトを生成
+        res_list <- analysis_results()
+        req(res_list, res_list$results)
+        # (renderPlot内のggplotコードをここにコピー＆ペースト)
+        p <- ggplot(res_list$results, aes(x = .data[[res_list$group_col]], y = .data[[res_list$index_name]], fill = .data[[res_list$group_col]])) +
+          geom_bar(stat = "identity", width = 0.8) +
+          labs(
+            y = paste("Index Score (", res_list$index_name, ")"),
+            x = tools::toTitleCase(gsub("_", " ", res_list$group_col)),
+            title = paste(res_list$index_name, "Index per", tools::toTitleCase(gsub("_", " ", res_list$group_col))),
+            fill = tools::toTitleCase(gsub("_", " ", res_list$group_col))
+          ) +
+          theme_minimal(base_size = 14) +
+          theme(
+            axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+            axis.ticks.x = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.grid.minor.x = element_blank(),
+            legend.position = input$legend
+          )
+        
+        ggsave(file, plot = p, width = input$plot_width / 72, height = input$plot_height / 72, device = "pdf", dpi = 300)
+      }
+    )
 
   }) # moduleServer 終了
 }

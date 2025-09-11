@@ -1,3 +1,5 @@
+#source("../utils.R")
+source("utils.R")
 # --- UI 関数定義 (修正箇所) ---
 trackClonotypeUI <- function(id) {
   ns <- NS(id) # 名前空間を作成
@@ -66,6 +68,11 @@ trackClonotypeServer <- function(id, myReactives) {
        req(myReactives$seurat_object)
        update_group_by_select_input(session, myReactives)
     }, ignoreNULL = TRUE)
+
+    observeEvent(myReactives$grouping_updated, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
+    })
 
     # 2. Clone Identifier Column の選択肢更新
     observe({

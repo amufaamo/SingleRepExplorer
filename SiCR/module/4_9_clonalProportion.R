@@ -47,7 +47,18 @@ clonalProportionServer <- function(id, myReactives) {
     ns <- session$ns
     debug_mode <- TRUE
 
+        observeEvent(myReactives$seurat_object, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
+    })
+
+    observeEvent(myReactives$grouping_updated, {
+      req(myReactives$seurat_object)
+      update_group_by_select_input(session, myReactives)
+    })
+
     reactive_data <- reactive({
+      message("--- reactive_data calculation started ---")
       req(input$vdj_type)
       vdj_type <- input$vdj_type
       message("Using vdj_type from input: ", vdj_type)

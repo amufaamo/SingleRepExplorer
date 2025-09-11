@@ -228,7 +228,7 @@ navbarMenu(
 # サーバーロジック定義
 server <- function(input, output, session) {
   # myReactivesを初期化
-  myReactives <- reactiveValues()
+  myReactives <- reactiveValues(grouping_updated = 0)
 
   # データアップロード用のサーバーモジュールを有効化
   uploadCellrangerServer("upload", myReactives)

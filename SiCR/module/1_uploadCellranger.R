@@ -46,275 +46,152 @@ uploadCellrangerUI <- function(id) {
 }
 
 # ==============================================================================
-# Server ロジック
+# Server ロジック (修正版)
 # ==============================================================================
 uploadCellrangerServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # (ファイルアップロードのUI部分は変更なし)
     output$h5_status_ui <- renderUI({ req(input$h5); tags$p("✅ Uploaded!", style = "color: green;") })
     output$tcr_status_ui <- renderUI({ req(input$tcr); tags$p("✅ Uploaded!", style = "color: green;") })
     output$bcr_status_ui <- renderUI({ req(input$bcr); tags$p("✅ Uploaded!", style = "color: green;") })
 
     observeEvent(input$run, {
-      
-      if (is.null(input$h5$datapath)) {
-        shinyalert::shinyalert("Oops!", "Please upload the .h5 file first.", type = "error")
+      # --- 1. キャッシュファイルのパスを定義 ---
+      cache_file_path <- "analysis_cache.rds"
+
+      # --- 2. 入力とキャッシュの存在をチェック ---
+      # キャッシュがなく、かつ.h5ファイルもアップロードされていない場合はエラー
+      if (!file.exists(cache_file_path) && is.null(input$h5$datapath)) {
+        shinyalert::shinyalert("Input Required", "Please upload the .h5 file for the first analysis.", type = "error")
         return()
       }
-      
-      shinyjs::hide("download_results") # 再実行時に備えてボタンを隠す
+
+      # --- 3. UIの初期化 ---
+      shinyjs::hide("download_results")
       shinyjs::disable("run")
       shinyjs::show("status_message")
-      shinyjs::html(id = "status_message", html = "<p style='color: blue;'>🏃 Run button clicked. Starting analysis...</p>")
-      
+
       withProgress(message = 'Analysis in progress', value = 0, {
-        
-        # ... (fileUpload, h5_to_seurat_object, run_seurat_object の呼び出しは変更なし) ...
-        incProgress(0.1, detail = "Assigning file paths...")
-        myReactives <- fileUpload(input, myReactives)
+        # --- 4. キャッシュの読み込み、または新規解析の実行 ---
+        if (file.exists(cache_file_path)) {
+          # --- [A] キャッシュが存在する場合：読み込んでスキップ ---
+          shinyjs::html(id = "status_message", html = paste0("<p style='color: #8A2BE2;'>📁 Found '", cache_file_path, "'. Loading cached analysis results...</p>"))
+          incProgress(0.2, detail = "Loading cached data...")
 
-        incProgress(0.1, detail = "Loading .h5 file...")
-        myReactives <- h5_to_seurat_object(myReactives)
-        
-        incProgress(0.2, detail = "Running basic Seurat processing...")
-        myReactives <- run_seurat_object(myReactives)
-        
-        # ### 変更点 1: tryCatchのエラー表示を強化 ###
-        # エラーが発生したときに、コンソールにもっと詳しい情報を表示するようにします。
-        incProgress(0.3, detail = "Performing cell typing with scType...")
-        tryCatch({
-          message("--- Starting scType analysis ---")
-          myReactives$seurat_object <- run_sctype_and_update_seurat(myReactives$seurat_object)
-          message("--- scType analysis finished successfully ---")
-          
-        }, error = function(e) {
-          # エラー内容をコンソールに表示
-          message("!!!!!!!!!! scType Error Caught !!!!!!!!!!")
-          message("Error message: ", e$message)
-          message("Error call: ", e$call)
-          # ユーザーにアラートを表示
-          shinyalert::shinyalert("scType Error", paste("Cell typing failed:", e$message), type = "error")
-        })
-        
-        # # --- VDJメタデータの追加と細胞タイプの特定 ---
-        # incProgress(0.1, detail = "Adding VDJ information to metadata...")
-        # if (!is.null(myReactives$tcr_path)) {
-        #     message("--- Adding TCR clonotype info to Seurat metadata ---")
-        #     myReactives <- addTCRClonotypeIdToSeuratObject(myReactives)
-        # }
-        # if (!is.null(myReactives$bcr_path)) {
-        #     message("--- Adding BCR clonotype info to Seurat metadata ---")
-        #     myReactives <- addBCRClonotypeIdToSeuratObject(myReactives)
-        # }
+          # キャッシュファイルを読み込む
+          cached_data <- readRDS(cache_file_path)
 
-        # VDJ情報に基づいてT/B細胞を分類する列を追加
-        if ("TCR_raw_clonotype_id" %in% names(myReactives$seurat_object@meta.data) || "BCR_raw_clonotype_id" %in% names(myReactives$seurat_object@meta.data)) {
-          message("--- Creating VDJ_cell_type metadata column ---")
-          so <- myReactives$seurat_object
-          
-          so@meta.data <- so@meta.data %>%
-            mutate(
-              VDJ_cell_type = case_when(
-                "TCR_raw_clonotype_id" %in% names(.) && !is.na(TCR_raw_clonotype_id) ~ "T cell",
-                "BCR_raw_clonotype_id" %in% names(.) && !is.na(BCR_raw_clonotype_id) ~ "B cell",
-                TRUE ~ "other"
-              )
-            )
-          myReactives$seurat_object <- so
-          message("VDJ_cell_type column created. Summary:")
-          print(table(myReactives$seurat_object$VDJ_cell_type))
-        }
-
-        # ... (TCR/BCR処理、Finalizingの呼び出しは変更なし) ...
-        if (!is.null(myReactives$tcr_path)) {
-                  incProgress(0.1, detail = "Processing TCR data...")
-          req(myReactives$seurat_object)
-          myReactives$tcr_df <- tcr_csv_to_dataframe(myReactives$tcr_path)
-          # --- DEBUG START (1_uploadCellranger.R - TCR processing) ---
-          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - nrow: ", nrow(myReactives$tcr_df)))
-          print(paste0("DEBUG: TCR: tcr_df after tcr_csv_to_dataframe - names: ", paste(names(myReactives$tcr_df), collapse = ", ")))
-          
-          # Get Seurat object barcodes (cell names)
-          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
-
-          if (nrow(myReactives$tcr_df) > 0) {
-            print(paste0("DEBUG: TCR: First 5 barcodes from tcr_df: ", paste(head(myReactives$tcr_df$barcode, 5), collapse = ", ")))
+          # myReactivesの各項目を復元
+          for (name in names(cached_data)) {
+            myReactives[[name]] <- cached_data[[name]]
           }
-          print(paste0("DEBUG: TCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
-          
-          # Standardize barcodes by removing '-1' suffix for matching
-          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
-          tcr_barcodes_clean <- stringr::str_replace(myReactives$tcr_df$barcode, "-1$", "")
-          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
-          
-          initial_overlap_count <- length(intersect(tcr_barcodes_clean, seurat_barcodes_clean))
-          print(paste0("DEBUG: TCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count))
-          
-          # Filter tcr_df using cleaned barcodes
-          # Temporarily add cleaned barcode to tcr_df for filtering
-          myReactives$tcr_df <- myReactives$tcr_df %>%
-            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
-            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
-            dplyr::select(-barcode_clean) # Remove temporary column
 
-          print(paste0("DEBUG: TCR: tcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$tcr_df)))
+          incProgress(0.8, detail = "Cached data loaded successfully.")
+          message(paste("✅ Successfully loaded all analysis results from", cache_file_path))
 
-          metadata <- myReactives$seurat_object@meta.data %>%
-            tibble::rownames_to_column(var = "barcode") %>% 
-            dplyr::select(sample, seurat_clusters, barcode)
-          myReactives$tcr_df <- dplyr::left_join(myReactives$tcr_df, metadata, by = "barcode")
-          # --- DEBUG END (1_uploadCellranger.R - TCR processing) ---
-          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - nrow: ", nrow(myReactives$tcr_df))) # This line was already there, keeping it.
-          print(paste0("DEBUG: TCR: tcr_df after filter and left_join - names: ", paste(names(myReactives$tcr_df), collapse = ", "))) # This line was already there, keeping it.
-          saveRDS(myReactives$tcr_df, 'tcr_df.rds')
-          write.csv(myReactives$tcr_df, 'tcr_df.csv', row.names = FALSE, quote = FALSE)
+        } else {
+          # --- [B] キャッシュが存在しない場合：新規解析を実行 ---
+          shinyjs::html(id = "status_message", html = "<p style='color: blue;'>🚀 Starting new analysis pipeline... (This may take a while)</p>")
 
-           # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        # ここからがご依頼の対応箇所です！
-        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        
-        # TCRデータが存在する場合、メタデータに'TCR'列を追加します
-        if (!is.null(myReactives$tcr_df) && nrow(myReactives$tcr_df) > 0) {
-            message("--- Adding 'TCR' column to Seurat metadata ---")
+          # (1) ファイルパスの割り当て
+          incProgress(0.1, detail = "Assigning file paths...")
+          myReactives <- fileUpload(input, myReactives)
+
+          # (2) .h5からSeuratオブジェクト作成
+          incProgress(0.1, detail = "Loading .h5 file...")
+          myReactives <- h5_to_seurat_object(myReactives)
+
+          # (3) Seurat標準解析 (Normalization, PCA, UMAP, etc.)
+          incProgress(0.2, detail = "Running basic Seurat processing...")
+          myReactives <- run_seurat_object(myReactives) # この関数は内部でSeuratオブジェクトを更新
+
+          # (4) scTypeによる細胞タイピング
+          incProgress(0.1, detail = "Performing cell typing with scType...")
+          tryCatch({
+            message("--- Starting scType analysis ---")
+            myReactives$seurat_object <- run_sctype_and_update_seurat(myReactives$seurat_object)
+            message("--- scType analysis finished successfully ---")
+          }, error = function(e) {
+            message("!!!!!!!!!! scType Error Caught !!!!!!!!!!")
+            message("Error message: ", e$message)
+            shinyalert::shinyalert("scType Error", paste("Cell typing failed:", e$message), type = "error")
+          })
+
+          # (5) TCRデータ処理
+          if (!is.null(myReactives$tcr_path)) {
+            incProgress(0.1, detail = "Processing TCR data...")
+            req(myReactives$seurat_object)
+            myReactives$tcr_df <- tcr_csv_to_dataframe(myReactives$tcr_path)
             
-            # Seuratオブジェクトのバーコードを取得します
+            # Seuratメタデータとマージ
             seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
+            myReactives$tcr_df <- myReactives$tcr_df %>%
+              dplyr::filter(barcode %in% seurat_barcodes)
             
-            # tcr_dfに存在するバーコードを取得します
+            metadata <- myReactives$seurat_object@meta.data %>%
+              tibble::rownames_to_column(var = "barcode") %>% 
+              dplyr::select(any_of(c("sample", "seurat_clusters")), barcode)
+            myReactives$tcr_df <- dplyr::left_join(myReactives$tcr_df, metadata, by = "barcode")
+            
+            # 'tcr_status' 列をメタデータに追加
+            message("--- Adding 'tcr_status' column to Seurat metadata ---")
+            seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
             tcr_barcodes <- myReactives$tcr_df$barcode
-            
-            # SeuratのバーコードがTCRのバーコードリストに含まれているかどうかの論理ベクトルを作成します
-            is_tcr_cell <- seurat_barcodes %in% tcr_barcodes
-            
-            # 新しい'TCR'列をSeuratオブジェクトのメタデータに追加します
-            myReactives$seurat_object@meta.data$TCR <- is_tcr_cell
-            
-            # 結果のサマリーをコンソールに出力して確認します
-            message("'TCR' column added. Summary:")
-            print(table(myReactives$seurat_object@meta.data$TCR))
-        } else {
-            # tcr_df がない、または空の場合は、全てのセルをFALSEに設定します
-            message("--- No TCR data found, setting 'TCR' column to FALSE for all cells ---")
-            myReactives$seurat_object@meta.data$TCR <- FALSE
-            print(table(myReactives$seurat_object@meta.data$TCR))
-        }
-
-        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        # ご依頼の対応はここまでです！
-        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
- 
-        }
-        if (!is.null(myReactives$bcr_path)) {
-                  incProgress(0.1, detail = "Processing BCR data...")
-          req(myReactives$seurat_object)
-          myReactives$bcr_df <- bcr_csv_to_dataframe(myReactives$bcr_path)
-          # --- DEBUG START (1_uploadCellranger.R - BCR processing) ---
-          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - nrow: ", nrow(myReactives$bcr_df)))
-          print(paste0("DEBUG: BCR: bcr_df after bcr_csv_to_dataframe - names: ", paste(names(myReactives$bcr_df), collapse = ", ")))
-
-          # Get Seurat object barcodes (cell names)
-          seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
-
-          if (nrow(myReactives$bcr_df) > 0) {
-            print(paste0("DEBUG: BCR: First 5 barcodes from bcr_df: ", paste(head(myReactives$bcr_df$barcode, 5), collapse = ", ")))
+            myReactives$seurat_object$tcr_status <- ifelse(seurat_barcodes %in% tcr_barcodes, "TCR positive", "TCR negative")
+            message("'tcr_status' column added. Summary:")
+            print(table(myReactives$seurat_object@meta.data$tcr_status))
           }
-          print(paste0("DEBUG: BCR: First 5 barcodes from seurat_object (rownames): ", paste(head(seurat_barcodes, 5), collapse = ", ")))
 
-          # Standardize barcodes by removing '-1' suffix for matching
-          # This is a common point of mismatch between Cell Ranger outputs and Seurat objects
-          bcr_barcodes_clean <- stringr::str_replace(myReactives$bcr_df$barcode, "-1$", "")
-          seurat_barcodes_clean <- stringr::str_replace(seurat_barcodes, "-1$", "")
-
-          initial_overlap_count_bcr <- length(intersect(bcr_barcodes_clean, seurat_barcodes_clean))
-          print(paste0("DEBUG: BCR: Number of overlapping barcodes (cleaned) before filter: ", initial_overlap_count_bcr))
-
-          # Filter bcr_df using cleaned barcodes
-          # Temporarily add cleaned barcode to bcr_df for filtering
-          myReactives$bcr_df <- myReactives$bcr_df %>%
-            dplyr::mutate(barcode_clean = stringr::str_replace(barcode, "-1$", "")) %>%
-            dplyr::filter(barcode_clean %in% seurat_barcodes_clean) %>%
-            dplyr::select(-barcode_clean) # Remove temporary column
-
-          print(paste0("DEBUG: BCR: bcr_df after filter (cleaned barcodes) - nrow: ", nrow(myReactives$bcr_df)))
-          # --- DEBUG END (1_uploadCellranger.R - BCR processing) ---
-          metadata <- myReactives$seurat_object@meta.data %>%
-            tibble::rownames_to_column(var = "barcode") %>%
-            dplyr::select(sample, seurat_clusters, barcode)
-          myReactives$bcr_df <- dplyr::left_join(myReactives$bcr_df, metadata, by = "barcode")
-          saveRDS(myReactives$bcr_df, 'bcr_df.rds')
-          write.csv(myReactives$bcr_df, 'bcr_df.csv',  row.names = FALSE, quote = FALSE)
-
-                  # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        # ここからがBCRのご依頼対応箇所です！
-        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        
-        # BCRデータが存在する場合、メタデータに'BCR'列を追加します
-        if (!is.null(myReactives$bcr_df) && nrow(myReactives$bcr_df) > 0) {
-            message("--- Adding 'BCR' column to Seurat metadata ---")
+          # (6) BCRデータ処理
+          if (!is.null(myReactives$bcr_path)) {
+            incProgress(0.1, detail = "Processing BCR data...")
+            req(myReactives$seurat_object)
+            myReactives$bcr_df <- bcr_csv_to_dataframe(myReactives$bcr_path)
             
-            # Seuratオブジェクトのバーコードを取得します
             seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
-            
-            # bcr_dfに存在するバーコードを取得します
+            myReactives$bcr_df <- myReactives$bcr_df %>%
+              dplyr::filter(barcode %in% seurat_barcodes)
+              
+            metadata <- myReactives$seurat_object@meta.data %>%
+              tibble::rownames_to_column(var = "barcode") %>%
+              dplyr::select(any_of(c("sample", "seurat_clusters")), barcode)
+            myReactives$bcr_df <- dplyr::left_join(myReactives$bcr_df, metadata, by = "barcode")
+
+            message("--- Adding 'bcr_status' column to Seurat metadata ---")
+            seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
             bcr_barcodes <- myReactives$bcr_df$barcode
-            
-            # SeuratのバーコードがBCRのバーコードリストに含まれているかどうかの論理ベクトルを作成します
-            is_bcr_cell <- seurat_barcodes %in% bcr_barcodes
-            
-            # 新しい'BCR'列をSeuratオブジェクトのメタデータに追加します
-            myReactives$seurat_object@meta.data$BCR <- is_bcr_cell
-            
-            # 結果のサマリーをコンソールに出力して確認します
-            message("'BCR' column added. Summary:")
-            print(table(myReactives$seurat_object@meta.data$BCR))
-        } else {
-            # bcr_df がない、または空の場合は、全てのセルをFALSEに設定します
-            message("--- No BCR data found, setting 'BCR' column to FALSE for all cells ---")
-            myReactives$seurat_object@meta.data$BCR <- FALSE
-            print(table(myReactives$seurat_object@meta.data$BCR))
+            myReactives$seurat_object$bcr_status <- ifelse(seurat_barcodes %in% bcr_barcodes, "BCR positive", "BCR negative")
+            message("'bcr_status' column added. Summary:")
+            print(table(myReactives$seurat_object@meta.data$bcr_status))
+          }
+          
+          # (7) 解析結果をキャッシュとして保存
+          incProgress(0.1, detail = "Finalizing and saving results to cache...")
+          results_to_save <- reactiveValuesToList(myReactives)
+          saveRDS(results_to_save, file = cache_file_path)
+          message(paste("--- ✅ Analysis complete. Results saved to", cache_file_path, "---"))
         }
+      }) # withProgressの終わり
 
-        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        # ご依頼の対応はここまでです！
-        # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-
-                 # ### ✨ここが変更点です！✨ ###
-        # myReactives（特別な箱）を、reactiveValuesToList()を使って
-        # myReactives_list（普通のリスト）に変換します。
-        # これで、Shinyアプリの外（通常のRセッション）でも安全に中身を確認できます！
-        message("--- Converting reactiveValues to a list for saving ---")
-        myReactives_list <- reactiveValuesToList(myReactives)
-        
-        # 変換したリストを.RDataファイルとして保存します
-        save(myReactives_list, file = "myReactives_data.RData")
-        message("--- Successfully saved to myReactives_data.RData ---")
-        }
-        incProgress(0.1, detail = "Finalizing...")
-
-      })
-
+      # --- 5. 完了処理 ---
       shinyjs::html(id = "status_message", html = "<p style='color: green;'>🎉 Analysis finished successfully!</p>")
       shinyjs::enable("run")
-      shinyjs::show("download_results") # 解析完了後にダウンロードボタンを表示
+      shinyjs::show("download_results")
       shinyjs::delay(5000, shinyjs::hide("status_message"))
     })
-    
-    # 解析結果をダウンロードするためのハンドラ
+
     output$download_results <- downloadHandler(
       filename = function() {
-        paste0("SiCR_analysis_results_", Sys.Date(), ".rds")
+        # 保存するファイル名をキャッシュファイル名と合わせる
+        "analysis_cache.rds"
       },
       content = function(file) {
-        # myReactivesはreactiveValuesオブジェクトなので、
-        # reactiveValuesToList()で通常のリストに変換してから保存するのが安全です。
-        # これにより、Shinyの依存関係なしにオブジェクトを保存できます。
-        results_to_save <- reactiveValuesToList(myReactives)
-        saveRDS(results_to_save, file = file)
+        # サーバー上に存在するキャッシュファイルをそのままコピーしてダウンロードさせる
+        file.copy("analysis_cache.rds", file)
       }
     )
-    
+
   })
 }
 
@@ -460,7 +337,7 @@ run_seurat_object <- function(myReactives) {
 
     myReactives$seurat_object <- seurat_object
     myReactives$meta.data <- seurat_object@meta.data
-    saveRDS(myReactives$seurat_object, 'seurat_object.rds')
+    # saveRDS(myReactives$seurat_object, 'seurat_object.rds') # 個別の保存は不要に
     
     message("--- [Seurat Process] All steps finished successfully! ---")
     
@@ -473,8 +350,6 @@ run_seurat_object <- function(myReactives) {
   
   return(myReactives)
 }
-
-
 
 # この関数は変更なしでOKです！
 fileUpload <- function(input, myReactives) {
