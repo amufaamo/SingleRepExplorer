@@ -1,0 +1,101 @@
+---
+title: "SingleRepExplorer Manual"
+output: html_document
+date: "2025-10-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview of SingleRepExplorer
+
+**SingleRepExplorer** is an interactive web application, built using the R/Shiny framework, designed for the comprehensive analysis of single-cell immune profiling data. It addresses the significant challenge of integrating single-cell RNA sequencing (scRNA-seq) transcriptomics with paired T-cell receptor (TCR) and B-cell receptor (BCR) repertoire analysis.
+
+The tool is specifically designed to be accessible to biologists and researchers who may have limited bioinformatics or command-line expertise. It provides a user-friendly graphical interface that streamlines complex analytical workflows, from data input to publication-ready visualizations.
+
+# Core Functionalities
+
+1.  **Data Input and Processing:**
+    * Accepts standard output files from 10x Genomics Cell Ranger (e.g., `filtered_feature_bc_matrix.h5` and `filtered_contig_annotations.csv`).
+    * Performs an automated workflow upon data upload, including normalization, scaling, clustering, and non-linear dimensionality reduction (UMAP/t-SNE) using the **Seurat** package.
+
+2.  **Transcriptome Analysis:**
+    * **Visualization:** Offers interactive UMAP, violin plots, and feature plots to explore gene expression.
+    * **Annotation:** Facilitates automated cell typing (e.g., via scType) and allows users to explore marker genes.
+    * **Differential Expression:** Identifies differentially expressed genes (DEGs) between user-defined cell groups.
+
+3.  **Immune Repertoire Analysis:**
+    * **Integration:** Seamlessly combines TCR/BCR contig information with the scRNA-seq data using the **scRepertoire** package.
+    * **Basic Characterization:** Provides modules to analyze clonal frequency, abundance, CDR3 length distribution, and repertoire diversity (e.g., Alpha diversity).
+    * **Comparative Analysis:** Includes tools for assessing clonal overlap between samples, identifying "public" clonotypes shared across groups, and tracking the dynamics of specific clones.
+    * **Advanced Features:** Offers specialized analyses such as:
+        * **Antigen Prediction:** Predicts potential antigens for specific TCR clonotypes.
+        * **BCR Analysis:** Visualizes isotype usage (e.g., IGHM, IGHG1) and constructs phylogenetic trees to explore clonal evolution and somatic hypermutation.
+
+By integrating these diverse functionalities into a single workbench, SingleRepExplorer significantly reduces the time and effort required for analysis, empowering researchers to interactively explore and interpret complex single-cell immune profiling datasets.
+
+
+
+# [Upload and Run] Tab: Data Upload and Processing
+
+
+
+The first step in using `SingleRepExplorer` is to upload your dataset via this tab. The application is designed to process outputs from the 10x Genomics Cell Ranger pipeline.
+
+## 1. Files to Upload
+
+You must upload the gene expression data, and you can optionally provide TCR and/or BCR repertoire files.
+
+* **1. Choose .h5 file (Required)**
+    * Upload the `filtered_feature_bc_matrix.h5` file. This contains the core single-cell gene expression data and is mandatory for all analyses.
+* **2. Choose .tcr file (Optional)**
+    * Upload the `filtered_contig_annotations.csv` file for the T-cell receptor (TCR) repertoire. This is required if you wish to perform TCR analysis.
+* **3. Choose .bcr file (Optional)**
+    * Upload the `filtered_contig_annotations.csv` file for the B-cell receptor (BCR) repertoire. This is required for BCR analysis.
+
+After selecting a file, a green "✅ Uploaded!" status message will appear beside the button to confirm the upload.
+
+## 2. Running the Analysis
+
+Once you have uploaded the necessary files (at minimum, the .h5 file), click the blue **[Run]** button to start the analysis.
+
+When the [Run] button is clicked, the following automated workflow is initiated on the server:
+
+1.  **Analysis Start Notification**:
+    * The [Run] button is temporarily disabled to prevent multiple clicks.
+    * A status message appears: "🏃 Run button clicked. Starting analysis...".
+2.  **Progress Indicator**:
+    * A progress bar titled "Analysis in progress" appears (usually in the bottom-right corner) to show the current processing status.
+3.  **Key Background Steps**:
+    * `Loading .h5 file...`: Reads the .h5 file and creates the core Seurat object.
+    * `Running Seurat object...`: Executes the standard Seurat analysis pipeline, including normalization, scaling, PCA, and non-linear dimensionality reduction (UMAP/t-SNE).
+    * `Adding cell types...`: Performs automated cell type annotation.
+    * `Processing TCR data...`: (If uploaded) Reads and formats the TCR data, linking it to the cells in the Seurat object.
+    * `Processing BCR data...`: (If uploaded) Reads and formats the BCR data, linking it to the cells in the Seurat object.
+4.  **Analysis Completion**:
+    * Upon successful completion, a "🎉 Analysis finished successfully!" message is displayed.
+    * The [Run] button is re-enabled, and the other analysis tabs (e.g., [Dimensional Plot], [Transcriptome], [Repertoire]) become active, allowing you to explore the results.
+
+**Error Handling**: If you click [Run] without first uploading the mandatory .h5 file, an alert box will appear with the message: "Oops! Please upload the .h5 file first.".
+
+
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
