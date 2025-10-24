@@ -74,7 +74,8 @@ uploadCellrangerServer <- function(id, myReactives) {
 
       withProgress(message = 'Analysis in progress', value = 0, {
         # --- 4. キャッシュの読み込み、または新規解析の実行 ---
-        if (file.exists(cache_file_path)) {
+        # 変更点: h5ファイルがアップロードされていない場合にのみキャッシュを読み込む
+        if (file.exists(cache_file_path) && is.null(input$h5$datapath)) {
           # --- [A] キャッシュが存在する場合：読み込んでスキップ ---
           shinyjs::html(id = "status_message", html = paste0("<p style='color: #8A2BE2;'>📁 Found '", cache_file_path, "'. Loading cached analysis results...</p>"))
           incProgress(0.2, detail = "Loading cached data...")
@@ -147,7 +148,7 @@ uploadCellrangerServer <- function(id, myReactives) {
           if (!is.null(myReactives$bcr_path)) {
             incProgress(0.1, detail = "Processing BCR data...")
             req(myReactives$seurat_object)
-            myReactives$bcr_df <- bcr_csv_to_dataframe(myReactives$bcr_path)
+            myReactives$bcr_df <- bcr_csv_to_dataframe(myReactives$bcr_path) # 修正: 正しい関数を呼び出す
             
             seurat_barcodes <- rownames(myReactives$seurat_object@meta.data)
             myReactives$bcr_df <- myReactives$bcr_df %>%
@@ -723,6 +724,48 @@ tcr_csv_to_dataframe <- function(csv_path){
   return(final_df)
 }
 
+#' @title CSVからBCRデータを処理するメイン関数
+#' @description 指定されたCSVファイルからBCRデータを読み込み、
+#'              ペア鎖データを抽出・整形します。
+#'              最終的にbarcode列をリネームし、先頭に移動させます。
+#' @param csv_path `character(1)`. 入力CSVファイルのパス。
+#' @return `data.frame`. 処理が完了したBCRデータフレーム。
+#'         処理中にエラーが発生した場合や、有効なデータが見つからない場合は、
+#'         空のデータフレームを返すことがあります。
+bcr_csv_to_dataframe <- function(csv_path) {
+  # --- 1. 入力チェック ---
+  if (!file.exists(csv_path)) {
+    stop("Input CSV file not found: ", csv_path)
+    return(NULL)
+  }
+
+  # --- 2. データ抽出・整形 ---
+  pair_data <- csv_to_bcr_pair_dataframe(csv_path)
+
+  if (is.null(pair_data) || nrow(pair_data) == 0 || !paste0(PREFIX_BCR_PAIR, "barcode") %in% names(pair_data)) {
+      warning("No valid paired BCR data found or extracted. Returning an empty data frame.")
+      return(data.frame())
+  }
+
+  # --- 3. 最終的な列整理 (barcode) ---
+  pair_barcode_col_rename <- paste0(PREFIX_BCR_PAIR, "barcode")
+  if (!"barcode" %in% names(pair_data) && pair_barcode_col_rename %in% names(pair_data)) {
+    processed_df <- pair_data %>%
+      dplyr::rename(barcode = !!rlang::sym(pair_barcode_col_rename))
+  } else if (!"barcode" %in% names(pair_data)) {
+      warning(paste("Column", pair_barcode_col_rename, "not found for renaming and 'barcode' column also does not exist."))
+      processed_df <- pair_data
+  } else {
+    processed_df <- pair_data
+  }
+
+  if ("barcode" %in% names(processed_df)) {
+    processed_df <- processed_df %>% dplyr::relocate(barcode)
+  }
+
+  # --- 4. 結果を返す ---
+  return(processed_df)
+}
 
 # ★ addCelltype は外部スクリプトに依存するため注意が必要 ★
 addCelltype <- function(myReactives) {
