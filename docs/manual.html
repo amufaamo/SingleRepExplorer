@@ -355,8 +355,6 @@ display: none;
 </div>
 
 
-<div id="overview-of-singlerepexplorer" class="section level1">
-<h1>Overview of SingleRepExplorer</h1>
 <p><strong>SingleRepExplorer</strong> is an interactive web application,
 built using the R/Shiny framework, designed for the comprehensive
 analysis of single-cell immune profiling data. It addresses the
@@ -368,7 +366,6 @@ researchers who may have limited bioinformatics or command-line
 expertise. It provides a user-friendly graphical interface that
 streamlines complex analytical workflows, from data input to
 publication-ready visualizations.</p>
-</div>
 <div id="core-functionalities" class="section level1">
 <h1>Core Functionalities</h1>
 <ol style="list-style-type: decimal">
@@ -416,6 +413,65 @@ somatic hypermutation.</li>
 SingleRepExplorer significantly reduces the time and effort required for
 analysis, empowering researchers to interactively explore and interpret
 complex single-cell immune profiling datasets.</p>
+<div id="getting-started" class="section level2">
+<h2>Getting Started</h2>
+<p><code>SingleRepExplorer</code> is distributed as a Docker container,
+making it easy to run on any system (Windows, macOS, or Linux). The only
+prerequisite is to have <strong>Docker Desktop</strong> installed.</p>
+<div id="step-1-install-docker-desktop" class="section level3">
+<h3>Step 1: Install Docker Desktop</h3>
+<p>If you do not already have it, please install Docker Desktop. It is a
+free application for Mac and Windows.</p>
+<ul>
+<li><strong>Download for macOS:</strong> <a href="https://www.docker.com/products/docker-desktop/">https://www.docker.com/products/docker-desktop/</a></li>
+<li><strong>Download for Windows:</strong> <a href="https://www.docker.com/products/docker-desktop/">https://www.docker.com/products/docker-desktop/</a></li>
+</ul>
+<p>After installing, please <strong>start the Docker Desktop
+application</strong>. You must have it running in the background to
+proceed.</p>
+</div>
+<div id="step-2-run-singlerepexplorer" class="section level3">
+<h3>Step 2: Run SingleRepExplorer</h3>
+<p>Once Docker is running, open your command-line terminal.</p>
+<ul>
+<li><strong>On macOS:</strong> Open the <strong>“Terminal”</strong> app
+(you can find it in Applications/Utilities).</li>
+<li><strong>On Windows:</strong> Open <strong>“PowerShell”</strong> or
+<strong>“Command Prompt”</strong> (you can find it in the Start
+Menu).</li>
+</ul>
+<p>Copy and paste the following command into your terminal, then press
+<strong>Enter</strong>:</p>
+<pre class="bash"><code>docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:v1.1.10</code></pre>
+<p>This command will automatically:</p>
+<ol style="list-style-type: decimal">
+<li>Download (pull) the <code>amufaamo/singlerepexplorer:v1.1.10</code>
+image from Docker Hub, if you don’t have it.</li>
+<li>Start the application.</li>
+</ol>
+<!-- end list -->
+<ul>
+<li><code>--rm</code>: This flag ensures the container is automatically
+removed when you stop it.</li>
+<li><code>-p 3838:3838</code>: This maps port 3838 on your computer
+(localhost) to the application’s port 3838 inside the container.</li>
+</ul>
+</div>
+<div id="step-3-access-the-application" class="section level3">
+<h3>Step 3: Access the Application</h3>
+<p>The application is now running. Open your web browser (like Chrome,
+Firefox, or Safari) and navigate to the following address:</p>
+<p><strong><code>http://localhost:3838</code></strong></p>
+<p>You should now see the <code>SingleRepExplorer</code> interface and
+can begin your analysis.</p>
+</div>
+<div id="stopping-the-application" class="section level3">
+<h3>Stopping the Application</h3>
+<p>To stop the application, simply return to your terminal window where
+the command is running and press
+<strong><code>Ctrl+C</code></strong>.</p>
+</div>
+</div>
 </div>
 <div id="upload-and-run-tab-data-upload-and-processing" class="section level1">
 <h1>[Upload and Run] Tab: Data Upload and Processing</h1>
@@ -495,29 +551,995 @@ allowing you to explore the results.</li>
 <p><strong>Error Handling</strong>: If you click [Run] without first
 uploading the mandatory .h5 file, an alert box will appear with the
 message: “Oops! Please upload the .h5 file first.”.</p>
-<p>This is an R Markdown document. Markdown is a simple formatting
-syntax for authoring HTML, PDF, and MS Word documents. For more details
-on using R Markdown see <a href="http://rmarkdown.rstudio.com" class="uri">http://rmarkdown.rstudio.com</a>.</p>
-<p>When you click the <strong>Knit</strong> button a document will be
-generated that includes both content as well as the output of any
-embedded R code chunks within the document. You can embed an R code
-chunk like this:</p>
-<pre class="r"><code>summary(cars)</code></pre>
-<pre><code>##      speed           dist       
-##  Min.   : 4.0   Min.   :  2.00  
-##  1st Qu.:12.0   1st Qu.: 26.00  
-##  Median :15.0   Median : 36.00  
-##  Mean   :15.4   Mean   : 42.98  
-##  3rd Qu.:19.0   3rd Qu.: 56.00  
-##  Max.   :25.0   Max.   :120.00</code></pre>
+<hr />
 </div>
-<div id="including-plots" class="section level2">
-<h2>Including Plots</h2>
-<p>You can also embed plots, for example:</p>
-<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
-<p>Note that the <code>echo = FALSE</code> parameter was added to the
-code chunk to prevent printing of the R code that generated the
+</div>
+<div id="analysis-tabs" class="section level1">
+<h1>Analysis Tabs</h1>
+<p>This section provides a detailed guide to the various analysis tabs
+available in SingleRepExplorer.</p>
+<div id="dimensional-plot-tab" class="section level2">
+<h2>[Dimensional Plot] Tab</h2>
+<p>This tab is the primary interface for visualizing your clustered
+single-cell data. It allows you to explore cell populations on a 2D map
+(like UMAP or t-SNE) and interact with the data by coloring, renaming,
+and highlighting specific cell groups.</p>
+<p>The tab is divided into a <strong>Sidebar Panel</strong> (left) for
+controls and a <strong>Main Panel</strong> (right) for outputs.</p>
+<div id="sidebar-panel-controls" class="section level3">
+<h3>Sidebar Panel: Controls</h3>
+<p>The sidebar contains all the options to customize your plot.</p>
+<div id="plot-display-options" class="section level4">
+<h4>1. Plot Display Options</h4>
+<ul>
+<li><strong>Reduction</strong>: Select the dimensionality reduction
+method to display. This is typically <code>UMAP</code> or
+<code>TSNE</code>. The dropdown is populated automatically from your
+loaded Seurat object.</li>
+<li><strong>Group by</strong>: This is a key control. Choose which
+metadata column to use for coloring the cells (e.g.,
+<code>seurat_clusters</code>, <code>sample</code>, or any custom cell
+type annotations).</li>
+<li><strong>Rename</strong> (Button): Click this button to rename or
+regroup the categories in your selected “Group by” column.
+<ul>
+<li>A pop-up window will appear.</li>
+<li>Enter a <strong>New Group Name</strong> (e.g.,
+<code>Celltype_manual</code>).</li>
+<li>For each existing level (e.g., Cluster “0”), you can provide a new
+name (e.g., “T-cells”). You can assign the same new name to multiple old
+levels to merge them.</li>
+<li>Click “Save”, and this new grouping will be added to your dataset
+and automatically selected in the “Group by” dropdown.</li>
+</ul></li>
+<li><strong>Point Size</strong>: Adjusts the size of the individual dots
+on the plot.</li>
+<li><strong>Label Size</strong>: Adjusts the size of the text labels for
+each cluster.</li>
+<li><strong>Legend Position</strong>: Control where the plot legend is
+placed (or set to “none”).</li>
+<li><strong>Plot Width / Height</strong>: Adjust the dimensions of the
+plot in pixels.</li>
+</ul>
+<hr />
+</div>
+<div id="search-highlight" class="section level4">
+<h4>2. Search &amp; Highlight</h4>
+<p>This powerful feature allows you to find specific cells based on
+complex criteria (including repertoire data) and highlight them on the
 plot.</p>
+<ol style="list-style-type: decimal">
+<li><strong>Enable Highlight by Search</strong>: Check this box to
+activate the feature. This will temporarily override the “Group by”
+coloring.</li>
+<li><strong>Select Data Source</strong>: Choose where to search for your
+cells:
+<ul>
+<li><strong>Seurat Metadata</strong>: Search any categorical column in
+the main Seurat object (e.g., <code>seurat_clusters</code>,
+<code>sample</code>).</li>
+<li><strong>TCR Clonotypes</strong>: (If loaded) Search the TCR data
+table.</li>
+<li><strong>BCR Clonotypes</strong>: (If loaded) Search the BCR data
+table.</li>
+</ul></li>
+<li><strong>Select Column to Search</strong>: Based on your source,
+select a column to search (e.g., <code>raw_clonotype_id</code> from TCR
+data, or <code>seurat_clusters</code> from Metadata).</li>
+<li><strong>Select Value(s) to Highlight</strong>: Type or select one or
+more values from the chosen column (e.g., a specific clonotype ID like
+“clonotype10”).</li>
+<li><strong>Apply Highlight</strong>: Click this button. The plot will
+update to show all cells matching your criteria in <strong>dark
+blue</strong>, while all other cells will be greyed out.</li>
+</ol>
+<p>To return to the “Group by” cluster view, simply
+<strong>uncheck</strong> the “Enable Highlight by Search” box.</p>
+</div>
+</div>
+<div id="main-panel-outputs" class="section level3">
+<h3>Main Panel: Outputs</h3>
+<div id="plot" class="section level4">
+<h4>1. Plot</h4>
+<p>This area displays the dimensional reduction plot you have
+configured. * <strong>Download plot (.pdf)</strong>: Click to download
+the current plot as a high-resolution, publication-ready PDF.</p>
+</div>
+<div id="coordinates-table" class="section level4">
+<h4>2. Coordinates Table</h4>
+<p>This is an interactive table showing the underlying data for the
+plot. * It displays the selected “Group by” information (e.g.,
+<code>seurat_clusters</code>) and the X/Y coordinates (e.g.,
+<code>UMAP_1</code>, <code>UMAP_2</code>) for every cell. *
+<strong>Download Table (.csv)</strong>: Click to download this full data
+table as a CSV file.</p>
+<hr />
+</div>
+</div>
+</div>
+<div id="transcriptome-tab" class="section level2">
+<h2>[Transcriptome] Tab</h2>
+<div id="differential-expression" class="section level3">
+<h3>Differential Expression</h3>
+<p>This module allows you to perform <strong>Differential Gene
+Expression (DGE)</strong> analysis to identify genes that are expressed
+at different levels between cell populations. It operates in two
+distinct modes.</p>
+</div>
+<div id="sidebar-panel-controls-1" class="section level3">
+<h3>Sidebar Panel: Controls</h3>
+<div id="analysis-setup" class="section level4">
+<h4>1. Analysis Setup</h4>
+<ul>
+<li><p><strong>Comparison Type</strong>: This is the most important
+setting.</p>
+<ul>
+<li><strong>“To entire dataset” (Marker Identification)</strong>: This
+mode finds marker genes for <em>each</em> group. It compares one group
+(e.g., “Cluster 1”) against all other cells combined (“Cluster 1
+vs. All”). It repeats this for every group.</li>
+<li><strong>“Between selected group(s)” (Direct Comparison)</strong>:
+This mode compares two specific groups directly (e.g., “Cluster 1
+vs. Cluster 2”).</li>
+</ul></li>
+<li><p><strong>Group by</strong>: Select the metadata column that
+defines your cell groups (e.g., <code>seurat_clusters</code>,
+<code>sample</code>, or your custom
+<code>Celltype_manual</code>).</p></li>
+<li><p><strong>Log fold change (Threshold)</strong>: Sets the minimum
+log-fold change (e.g., 0.1) for a gene to be considered differentially
+expressed.</p></li>
+<li><p><strong>Minimum percentage of cells… (min.pct)</strong>: Sets the
+minimum percentage of cells in either population that must express the
+gene (e.g., 0.01 = 1%).</p></li>
+<li><p><strong>Run</strong> (Button): Click this to start the DGE
+calculation after setting your parameters.</p></li>
+</ul>
+</div>
+<div id="mode-specific-options" class="section level4">
+<h4>2. Mode-Specific Options</h4>
+<p><strong>If “Comparison Type” is “To entire dataset”:</strong></p>
+<ul>
+<li><strong>Show Features</strong>:
+<ul>
+<li><code>Only Up-regulated</code>: Returns only genes that are
+<em>higher</em> in the group of interest.</li>
+<li><code>Only Down-regulated</code>: Returns only genes that are
+<em>lower</em> in the group of interest.</li>
+<li><code>Both</code>: Returns all differentially expressed genes.</li>
+</ul></li>
+<li><strong>Number of markers</strong>: (Appears after “Run”) The number
+of top markers to display in the summary table (e.g., 10).</li>
+<li><strong>Threshold of adjusted p-value</strong>: (Appears after
+“Run”) The p-value cutoff for the summary table.</li>
+</ul>
+<p><strong>If “Comparison Type” is “Between selected
+group(s)”:</strong></p>
+<ul>
+<li><strong>Target cluster(s)</strong>: Select the group(s) you are
+interested in (this is <code>ident.1</code> in the comparison).</li>
+<li><strong>Reference cluster(s)</strong>: Select the group(s) you want
+to compare against (this is <code>ident.2</code>).</li>
+<li><strong>Highlight Genes</strong>: (Appears after “Run”) Enter a
+comma-separated list of gene names (e.g., <code>CD8A, GZMB</code>) to
+highlight them on the volcano plot.</li>
+<li><strong>Plot Customization</strong>: (Appears after “Run”) Adjust
+p-value thresholds, point sizes, and plot dimensions.</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="main-panel-outputs-1" class="section level3">
+<h3>Main Panel: Outputs</h3>
+<p>The main panel’s display changes based on the “Comparison Type” you
+selected.</p>
+<div id="if-to-entire-dataset-marker-identification" class="section level4">
+<h4>If “To entire dataset” (Marker Identification)</h4>
+<ul>
+<li><strong>Most Differentially Expressed Features (markers) for Each
+Group</strong>:
+<ul>
+<li>A summary table showing the top marker genes (based on your
+settings) for each cluster, formatted as a comma-separated list for easy
+viewing.</li>
+<li><code>Download marker table (.csv)</code>: Downloads this summary
+table.</li>
+</ul></li>
+<li><strong>Differentially Expressed Features across Groups</strong>:
+<ul>
+<li>A complete, interactive data table containing <em>all</em>
+differential expression results for <em>all</em> clusters.</li>
+<li>You can use the search boxes at the top of columns to filter for
+specific genes (e.g., <code>gene</code> column) or clusters (e.g.,
+<code>cluster</code> column).</li>
+<li><code>Download all table (.csv)</code>: Downloads this full results
+table.</li>
+</ul></li>
+</ul>
+</div>
+<div id="if-between-selected-groups-direct-comparison" class="section level4">
+<h4>If “Between selected group(s)” (Direct Comparison)</h4>
+<ul>
+<li><strong>Volcano Plot</strong>:
+<ul>
+<li>An interactive plot visualizing the results. The X-axis is the
+<strong>log-fold change</strong> (positive values are up-regulated in
+your “Target” group), and the Y-axis is the <strong>-log10 adjusted
+p-value</strong> (higher means more significant).</li>
+<li>Hover over points to see gene names.</li>
+<li>Genes entered in the “Highlight Genes” box will be colored red and
+labeled.</li>
+<li><code>Download Plot (PDF)</code>: Downloads a static,
+publication-quality PDF of the volcano plot.</li>
+</ul></li>
+<li><strong>Differentially Expressed Features…</strong>:
+<ul>
+<li>A complete, interactive data table showing the full results for the
+<em>single comparison</em> you performed.</li>
+<li><code>Download all table (.csv)</code>: Downloads this data
+table.</li>
+</ul></li>
+</ul>
+<hr />
+</div>
+</div>
+</div>
+<div id="repertoire-tab" class="section level2">
+<h2>[Repertoire] Tab</h2>
+<p>This tab provides a suite of tools for in-depth analysis of immune
+repertoires.</p>
+<div id="clonotype-information" class="section level3">
+<h3>Clonotype Information</h3>
+<p>This tab serves as the primary data browser for your repertoire. It
+provides a comprehensive, filterable table of every unique clonotype
+identified in your dataset, along with all associated V(D)J gene usage
+and sequence information.</p>
+<div id="sidebar-panel-controls-2" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: This is the only control. You must select
+whether you want to inspect the <strong>TCR</strong> or
+<strong>BCR</strong> clonotype table. The main panel will update based
+on this selection.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-2" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Clonotype Data Table</strong>: This powerful, interactive
+table displays the detailed annotation for each unique clonotype.
+<ul>
+<li><strong>Filtering</strong>: You can type in the search boxes at the
+top of each column to filter the entire table. For example, you can
+search for a specific <code>TCR_TRA_v_gene</code> or
+<code>raw_clonotype_id</code>.</li>
+<li><strong>Sorting</strong>: The table is sorted by default based on
+the clonotype ID (<code>raw_clonotype_id</code>) to group related
+subclones together. You can also click any column header to
+re-sort.</li>
+</ul>
+The table contains extensive information, including:
+<ul>
+<li><strong>Clonotype IDs</strong>: <code>raw_clonotype_id</code>,
+<code>exact_subclonotype_id</code>.</li>
+<li><strong>Paired Sequences</strong>: <code>CTgene</code> (V/J genes),
+<code>CTaa</code> (CDR3 amino acid), <code>CTnt</code> (CDR3
+nucleotide).</li>
+<li><strong>Chain 1 (TRA or IGH) Details</strong>: V, D (if applicable),
+J, and C genes.</li>
+<li><strong>Chain 2 (TRB or IGL/K) Details</strong>: V, D (if
+applicable), J, and C genes.</li>
+<li><strong>Full Sequences</strong>: All framework (FWR) and
+complementarity-determining regions (CDR) for both nucleotide and amino
+acid sequences of each chain.</li>
+</ul></li>
+<li><strong>Download table (.csv)</strong>: Click this button to
+download the complete data table (respecting the “TCR” or “BCR”
+selection) as a CSV file for further analysis.</li>
+</ul>
+</div>
+</div>
+<div id="frequency-analysis" class="section level3">
+<h3>Frequency Analysis</h3>
+<p>This versatile module allows you to analyze and visualize the
+frequencies of two different targets: 1. <strong>Clonotype
+Frequency</strong>: (e.g., the “Top 10” most abundant clonotypes) 2.
+<strong>Gene Usage</strong>: (e.g., the usage frequency of different
+V-genes)</p>
+<div id="sidebar-panel-controls-3" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<div id="main-setup" class="section level5">
+<h5>1. Main Setup</h5>
+<ul>
+<li><strong>Analysis Target</strong>: This crucial toggle switches the
+entire module’s function.
+<ul>
+<li><code>Clonotype Frequency</code>: Analyzes the abundance of the most
+frequent clonotypes (e.g., “clonotype1”, “clonotype2”).</li>
+<li><code>Gene Usage</code>: Analyzes the abundance of specific gene
+segments (e.g., <code>TRBV6-5</code>, <code>TRAV8-1</code>).</li>
+</ul></li>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Group by</strong>: Choose the metadata column used to group
+the cells (e.g., <code>sample</code>,
+<code>seurat_clusters</code>).</li>
+</ul>
+</div>
+<div id="mode-specific-options-1" class="section level5">
+<h5>2. Mode-Specific Options</h5>
+<p>The options here change based on your “Analysis Target”
+selection.</p>
+<ul>
+<li><strong>If “Clonotype Frequency” is selected:</strong>
+<ul>
+<li><code>Top N Clonotypes</code>: Specify how many of the most abundant
+clonotypes you want to display (e.g., 10).</li>
+</ul></li>
+<li><strong>If “Gene Usage” is selected:</strong>
+<ul>
+<li><code>Target Gene Column</code>: Select the specific gene segment
+you want to analyze. The choices update based on your VDJ Type (e.g.,
+<code>TCR_TRB_v_gene</code>, <code>BCR_IGH_c_gene</code>, or combined
+V-J pairs like <code>TCR_TRA_v_j_pair</code>).</li>
+</ul></li>
+</ul>
+</div>
+<div id="plot-display-options-1" class="section level5">
+<h5>3. Plot &amp; Display Options</h5>
+<ul>
+<li><strong>Plot Type</strong>: Choose the visualization style:
+<ul>
+<li><code>Barplot (Dodged)</code>: Shows groups side-by-side for each
+item (clonotype/gene).</li>
+<li><code>Barplot (Stacked)</code>: Stacks groups on top of each other
+for each item.</li>
+<li><code>Barplot (Normal)</code>: (<em>Clonotype Frequency only</em>)
+Shows a single bar for each clonotype, representing its total frequency
+across all <em>filtered</em> groups.</li>
+<li><code>Heatmap</code>: Displays a matrix of groups vs. items, with
+color intensity representing frequency.</li>
+</ul></li>
+<li><strong>Display Value</strong>: Toggles the Y-axis (or color for
+heatmap).
+<ul>
+<li><code>Count</code>: Shows the raw number of cells.</li>
+<li><code>Percentage</code>: <strong>(Important)</strong> This logic
+changes based on the plot type:
+<ul>
+<li>For <code>Stacked</code>, <code>Dodged</code>, and
+<code>Heatmap</code>: Shows the percentage <em>within that group</em>
+(e.g., 5% of “Sample A” uses this gene).</li>
+<li>For <code>Normal</code> plots: Shows the percentage <em>of the total
+filtered dataset</em> (e.g., “clonotype1” makes up 2% of all
+cells).</li>
+</ul></li>
+</ul></li>
+<li><strong>Filter Groups</strong>: A list of checkboxes will appear
+based on your “Group by” selection (e.g., all samples). You can uncheck
+groups to exclude them from the analysis.</li>
+<li><strong>Sort X-axis by group</strong>: (<code>Dodged</code> plots
+only) Choose which group’s value (or “Overall”) should be used to sort
+the X-axis (clonotypes/genes) from highest to lowest.</li>
+<li><strong>Horizontal Barplot</strong>: (<code>Barplot</code> types
+only) Toggles the bar plots from vertical to horizontal.</li>
+<li><strong>Common Plot Options</strong>: Adjust the
+<code>Plot Width</code>, <code>Plot Height</code>, and
+<code>Legend Position</code>.</li>
+</ul>
+</div>
+</div>
+<div id="main-panel-outputs-3" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Plot</strong>: Displays the configured bar chart or heatmap.
+<ul>
+<li><code>Download plot (.pdf)</code>: Click to download the
+visualization as a publication-ready PDF.</li>
+</ul></li>
+<li><strong>Table</strong>: Shows the summary data table used to
+generate the plot, with exact counts and percentages.
+<ul>
+<li><code>Download table (.csv)</code>: Click to download this summary
+data as a CSV file.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="unique-clones" class="section level3">
+<h3>Unique Clones</h3>
+<p>This module helps quantify the diversity of your repertoire by
+answering the question: “How many different types of clonotypes exist
+within each group?”</p>
+<p>It generates a bar chart showing the total count (or proportion) of
+unique clonotypes found within each user-defined group (e.g., sample,
+cluster).</p>
+<div id="sidebar-panel-controls-4" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Group by</strong>: Choose the metadata column used to group
+the cells (e.g., <code>sample</code>, <code>seurat_clusters</code>). The
+analysis will count unique clonotypes <em>per</em> group.</li>
+<li><strong>Value Type</strong>: Choose what the Y-axis of the bar chart
+represents:
+<ul>
+<li><strong>Count</strong>: Shows the absolute number of unique
+clonotypes in that group (e.g., “Cluster 1 has 500 unique
+clonotypes”).</li>
+<li><strong>Percentage</strong>: Shows the proportion of unique
+clonotypes relative to the total number of cells in that group (e.g.,
+“In Cluster 1, 10% of cells are unique clonotypes”).</li>
+</ul></li>
+<li><strong>Common Plot Options</strong>: Adjust the plot dimensions
+(<code>Plot Width</code>, <code>Plot Height</code>) and the legend
+position.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-4" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Plot</strong>: A bar chart where each bar represents a group
+(from your “Group by” selection). The height of the bar shows either the
+total count or the proportion of unique clonotypes, based on your “Value
+Type” selection.
+<ul>
+<li><code>Download plot (.pdf)</code>: Downloads the bar chart as a
+publication-ready PDF.</li>
+</ul></li>
+<li><strong>Table</strong>: An interactive data table showing the
+summary data used to generate the plot. It includes:
+<ul>
+<li><code>Group</code>: The categories from your “Group by”
+selection.</li>
+<li><code>unique_clonotype_count</code>: The absolute number of unique
+clonotypes.</li>
+<li><code>total_clonotype_count</code>: The total number of cells
+(barcodes) in that group.</li>
+<li><code>proportion_unique</code>: The calculated percentage (unique /
+total).</li>
+<li><code>Download table (.csv)</code>: Downloads this summary table as
+a CSV file.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="clonal-abundance" class="section level3">
+<h3>Clonal Abundance</h3>
+<p>This module visualizes the <strong>clonal abundance
+distribution</strong> for each group. It plots the abundance (either as
+a proportion or raw count) of each clonotype against its rank within its
+group. This type of plot is useful for assessing clonal dominance and
+evenness – for example, a steep drop-off indicates that a few clones
+dominate the repertoire, while a flatter curve suggests a more even
+distribution.</p>
+<div id="sidebar-panel-controls-5" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Group by</strong>: Choose the metadata column used to group
+the cells (e.g., <code>sample</code>, <code>seurat_clusters</code>). The
+plot will show a separate line for each group.</li>
+<li><strong>Y-Axis Unit</strong>: Choose what the Y-axis represents:
+<ul>
+<li><code>Percentage</code>: Shows the proportion of each clonotype
+relative to the total number of cells <em>within that group</em>.</li>
+<li><code>Count</code>: Shows the raw number of cells for each
+clonotype.</li>
+</ul></li>
+<li><strong>Filter Groups</strong>: A list of checkboxes will appear
+based on your “Group by” selection. You can uncheck groups to exclude
+them from the analysis and plot.</li>
+<li><strong>Common Plot Options</strong>: Adjust the
+<code>Plot Width</code>, <code>Plot Height</code>, and
+<code>Legend Position</code>.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-5" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Plot</strong>: Displays a <strong>rank-abundance
+plot</strong>.
+<ul>
+<li><strong>X-axis</strong>: Shows the rank of the clonotypes within
+each group (log scale), ordered from most abundant (rank 1) to least
+abundant.</li>
+<li><strong>Y-axis</strong>: Shows the abundance of the clonotype at
+that rank, either as a percentage or count, based on your
+selection.</li>
+<li><strong>Color</strong>: Each line represents a different group
+defined by your “Group by” selection.</li>
+<li><code>Download plot (.pdf)</code>: Downloads the rank-abundance plot
+as a publication-ready PDF.</li>
+</ul></li>
+<li><strong>Table</strong>: An interactive data table showing the data
+used for the plot. It includes:
+<ul>
+<li>The grouping column (e.g., <code>sample</code>).</li>
+<li><code>raw_clonotype_id</code>: The identifier for each
+clonotype.</li>
+<li><code>count</code>: The raw number of cells for that clonotype in
+that group.</li>
+<li><code>proportion</code>: The calculated proportion of that clonotype
+within its group.</li>
+<li><code>rank</code>: The rank of that clonotype within its group based
+on abundance.</li>
+<li><code>Download table (.csv)</code>: Downloads this summary data as a
+CSV file.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="clonal-length" class="section level3">
+<h3>Clonal Length</h3>
+<p>This module analyzes the length distribution of specific repertoire
+sequences, most commonly the CDR3. It allows you to visualize and
+compare whether different cell groups (e.g., samples or clusters) have
+different characteristic lengths for their receptor sequences.</p>
+<div id="sidebar-panel-controls-6" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Target Column (for Length Calculation)</strong>: This is the
+key control. Select the sequence you wish to measure. The choices update
+based on your VDJ Type.
+<ul>
+<li>For TCR, you can select <code>TCR_TRB_cdr3</code> (amino acid
+length) or <code>TCR_TRB_cdr3_nt</code> (nucleotide length), among other
+chain options.</li>
+<li>For BCR, you can select <code>BCR_IGH_cdr3</code>,
+<code>BCR_IGK_cdr3</code>, etc.</li>
+</ul></li>
+<li><strong>Group by</strong>: Choose the metadata column used to group
+the cells (e.g., <code>sample</code>, <code>seurat_clusters</code>). The
+plot will show a separate distribution for each group.</li>
+<li><strong>Filter Groups</strong>: A list of checkboxes will appear
+based on your “Group by” selection. You can uncheck groups to exclude
+them from the analysis.</li>
+<li><strong>Plot Type</strong>: Choose the visualization style:
+<ul>
+<li><code>Dodged Bars</code>: Shows the distribution for each group
+side-by-side. Ideal for comparing specific length counts.</li>
+<li><code>Stacked Bars</code>: Stacks the group distributions. Ideal for
+comparing the <em>proportion</em> of lengths across groups.</li>
+<li><code>Boxplot</code>: Visualizes the statistical summary (median,
+quartiles, range) of lengths for each group.</li>
+</ul></li>
+<li><strong>Display Value</strong> (Bar plots only):
+<ul>
+<li><code>Count</code>: The Y-axis shows the raw number of cells for
+each length.</li>
+<li><code>Percentage (%)</code>: The Y-axis shows the percentage
+<em>within that group</em> (e.g., in “Sample A”, 20% of cells have a
+CDR3 length of 15).</li>
+</ul></li>
+<li><strong>Horizontal Barplot</strong> (Bar plots only): Toggles the
+bar plots from vertical to horizontal.</li>
+<li><strong>Common Plot Options</strong>: Adjust the
+<code>Plot Width</code>, <code>Plot Height</code>, and
+<code>Legend Position</code>.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-6" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Plot</strong>: Displays the configured bar chart or boxplot
+showing the length distributions.
+<ul>
+<li><code>Download plot (.pdf)</code>: Click to download the
+visualization as a publication-ready PDF.</li>
+</ul></li>
+<li><strong>Table</strong>: An interactive data table showing the
+summary data used to generate the bar charts. It lists each group, each
+observed sequence length, the raw count, and the calculated percentage.
+(Note: The boxplot uses the non-summarized raw length data).
+<ul>
+<li><code>Download table (.csv)</code>: Click to download this summary
+data as a CSV file.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="track-clonotype" class="section level3">
+<h3>Track Clonotype</h3>
+<p>This powerful module allows you to track the abundance of specific,
+user-selected clonotypes across different groups (e.g., samples,
+clusters, or time points). It is ideal for visualizing how particular
+clones expand, contract, or are shared between populations.</p>
+<p>This module can generate two types of visualizations: a
+<strong>Stacked Bar</strong> chart or an <strong>Alluvial
+Plot</strong>.</p>
+<div id="sidebar-panel-controls-7" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Clone Identifier Column</strong>: Choose which column to use
+for identifying clonotypes. This is a crucial setting.
+<ul>
+<li>e.g., <code>raw_clonotype_id</code>, <code>TCR_pair_CTaa</code> (for
+paired CDR3 amino acids), or <code>BCR_IGH_cdr3</code>.</li>
+</ul></li>
+<li><strong>Target Clonotypes</strong>: Based on your column selection,
+this box allows you to select one or <em>multiple</em> clonotypes from
+the list that you wish to track.</li>
+<li><strong>Group by</strong>: Choose the metadata column that defines
+your groups for tracking (e.g., <code>sample</code>,
+<code>seurat_clusters</code>).</li>
+<li><strong>Plot Type</strong>: Select the visualization style:
+<ul>
+<li><code>Stacked Bar</code>: Shows a bar for each group, where each
+segment’s height represents the abundance of a tracked clonotype.</li>
+<li><code>Alluvial Plot</code>: Shows the “flow” of the tracked
+clonotypes from one group to the next. This is excellent for visualizing
+changes across ordered groups (like time points).</li>
+</ul></li>
+<li><strong>Value Type</strong>: Toggles the Y-axis.
+<ul>
+<li><code>Frequency (%)</code>: Shows the clonotype’s abundance as a
+percentage <em>within that group’s total cells</em>.</li>
+<li><code>Count</code>: Shows the raw cell count for that clonotype in
+that group.</li>
+</ul></li>
+<li><strong>Group Order</strong>: Enter a comma-separated list to define
+the exact order of the groups on the X-axis (e.g.,
+<code>Sample_A, Sample_B, Sample_C</code>). This is essential for
+Alluvial plots.</li>
+<li><strong>Legend/Plot Options</strong>: Adjust the legend position,
+plot width, and plot height.</li>
+<li><strong>Download Buttons</strong>: Buttons to download the generated
+plot and the underlying data table.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-7" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Clonotype Tracking Plot</strong>: Displays the Stacked Bar
+or Alluvial plot.
+<ul>
+<li><strong>Stacked Bar</strong>: Useful for seeing the relative
+contribution of each tracked clone to each group.</li>
+<li><strong>Alluvial Plot</strong>: Useful for seeing the “flow” and
+proportional changes of specific clones as they move between
+groups.</li>
+<li><code>Download plot (.pdf)</code>: Downloads the visualization as a
+publication-ready PDF.</li>
+</ul></li>
+<li><strong>Tracking Results Table</strong>: An interactive data table
+showing the raw data for the plot. It lists each tracked clonotype, each
+group, its raw count (<code>n</code>), the total cells in that group
+(<code>total_n</code>), and its calculated frequency
+(<code>frequency</code>).
+<ul>
+<li><code>Download table (.csv)</code>: Downloads this summary data as a
+CSV file.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="clonal-overlap" class="section level3">
+<h3>Clonal Overlap</h3>
+<p>This module is used to compare the similarity between the repertoires
+of different groups. It calculates an “overlap coefficient” for every
+pair of groups and displays the results as a heatmap, allowing you to
+quickly see which groups share the most clonotypes.</p>
+<div id="sidebar-panel-controls-8" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Clone Identifier Column</strong>: This is a key setting. You
+must define what constitutes a “clonotype” for the overlap calculation.
+<ul>
+<li>e.g., <code>TCR_pair_CTaa</code> (paired CDR3 amino acid sequence),
+<code>raw_clonotype_id</code>, or <code>BCR_IGH_cdr3</code>.</li>
+</ul></li>
+<li><strong>Group by</strong>: Choose the metadata column that defines
+the groups you want to compare (e.g., <code>sample</code>,
+<code>seurat_clusters</code>). You must have at least two groups to
+perform an analysis.</li>
+<li><strong>Common Plot Options</strong>: Adjust the
+<code>Plot Width</code>, <code>Plot Height</code>, and
+<code>Legend Position</code>.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-8" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Plot</strong>: This panel displays a
+<strong>heatmap</strong> of the overlap scores.
+<ul>
+<li>Both the X-axis and Y-axis list the groups you selected (e.g.,
+“Sample A”, “Sample B”).</li>
+<li>Each tile’s color (and the number inside it) represents the overlap
+coefficient between the two corresponding groups.</li>
+<li><strong>Calculation</strong>: The value is the <strong>Overlap
+Coefficient</strong> (Szymkiewicz–Simpson coefficient), which is
+calculated as:
+<code>(Number of shared clonotypes) / (Size of the smaller repertoire)</code></li>
+<li>A value of <strong>1.0</strong> (darkest color) means 100% overlap.
+The diagonal will always be 1.0, as a group perfectly overlaps with
+itself.</li>
+<li>A value of <strong>0.0</strong> (lightest color) means the two
+groups share no clonotypes.</li>
+<li><code>Download plot (.pdf)</code>: Click to download the heatmap as
+a publication-ready PDF.</li>
+</ul></li>
+<li><strong>Table</strong>: An interactive data table showing the raw
+matrix of overlap coefficients used to generate the plot.
+<ul>
+<li>The rows and columns represent the groups, and the cells contain the
+calculated overlap values (rounded to 3 decimal places).</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="clonal-proportion" class="section level3">
+<h3>Clonal Proportion</h3>
+<p>This module helps you understand the <strong>clonal expansion
+structure</strong> within each group (e.g., sample or cluster). It
+categorizes clonotypes based on their size (i.e., how many cells share
+the same clonotype) and displays the proportion of cells belonging to
+each size category as a stacked bar chart. This allows you to easily
+compare whether some groups are dominated by large, expanded clones
+while others consist mostly of unique or rare clones.</p>
+<div id="sidebar-panel-controls-9" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Group by</strong>: Choose the metadata column used to group
+the cells (e.g., <code>sample</code>, <code>seurat_clusters</code>). The
+analysis will calculate proportions <em>within</em> each of these
+groups.</li>
+<li><strong>Clone Definition</strong>: Select which column defines a
+unique clonotype.
+<ul>
+<li><code>Clonotype ID</code> (<code>raw_clonotype_id</code>): Uses the
+pre-defined clonotype ID (often based on shared V/J genes and CDR3
+sequence similarity).</li>
+<li><code>CDR3 nucleotide</code> (<code>nt</code>): Defines clonotypes
+based on the exact CDR3 nucleotide sequence (will likely result in more
+“unique” clones).</li>
+<li><code>CDR3 amino acid</code> (<code>aa</code>): Defines clonotypes
+based on the exact CDR3 amino acid sequence.</li>
+</ul></li>
+<li><strong>Chain</strong> (Appears after selecting VDJ type, primarily
+for TCR): Choose whether the analysis should consider both chains, or
+only TRA or TRB when defining clonotypes based on CDR3 sequences.
+<em>(Note: Current implementation calculates counts based on the ‘Clone
+Definition’ column irrespective of this selection, but it might be used
+for filtering in future versions)</em>.</li>
+<li><strong>Clonal Size Categories (Upper Limits)</strong>: These
+numeric inputs define the boundaries for categorizing clonotype sizes
+based on their count (<code>Ct</code>).
+<ol style="list-style-type: decimal">
+<li><strong>Unique Max Count</strong>: Clonotypes with a count less than
+or equal to this value (e.g., <code>1</code>) are categorized as
+“Unique”.</li>
+<li><strong>Rare Max Count</strong>: Clonotypes with a count greater
+than the ‘Unique’ limit but less than or equal to this value (e.g.,
+<code>5</code>) are categorized as “Rare”.</li>
+<li><strong>Small Max Count</strong>: (e.g., count &gt; 5 and &lt;=
+<code>20</code>).</li>
+<li><strong>Medium Max Count</strong>: (e.g., count &gt; 20 and &lt;=
+<code>100</code>).</li>
+<li><strong>Large Max Count</strong>: (e.g., count &gt; 100 and &lt;=
+<code>1000</code>).</li>
+<li><strong>Hyperexpanded Max Count</strong>: (e.g., count &gt; 1000 and
+&lt;= <code>10000</code>).</li>
+</ol>
+<ul>
+<li>Any clonotype with a count greater than the ‘Hyperexpanded’ limit
+falls into the final “Ct &gt; [Hyperexpanded Max]” category.</li>
+</ul></li>
+<li><strong>Legend/Plot Options</strong>: Adjust the legend position,
+plot width, and plot height.</li>
+<li><strong>Download Buttons</strong>: Buttons to download the plot and
+the data table.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-9" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Clonal Proportion by Size Category Plot</strong>: Displays a
+<strong>stacked bar chart</strong>.
+<ul>
+<li><strong>X-axis</strong>: Shows the different groups selected via
+“Group by”.</li>
+<li><strong>Y-axis</strong>: Represents 100% for each group.</li>
+<li><strong>Fill Colors</strong>: Each colored segment within a bar
+represents one of the clonal size categories defined in the sidebar
+(Unique, Rare, Small, etc.). The height of the segment shows the
+percentage of cells within that group that belong to clonotypes of that
+size category.</li>
+<li><code>Download plot (.pdf)</code>: Downloads the stacked bar chart
+as a publication-ready PDF.</li>
+</ul></li>
+<li><strong>Proportion Data Table</strong>: An interactive data table
+showing the summary data used for the plot. It includes:
+<ul>
+<li>The grouping column (e.g., <code>sample</code>).</li>
+<li><code>category</code>: The clonal size category label.</li>
+<li><code>n</code>: The number of <em>clonotypes</em> belonging to that
+category in that group.</li>
+<li><code>percentage</code>: The percentage of <em>cells</em> in that
+group belonging to clonotypes of that category (this is what’s
+plotted).</li>
+<li><code>Download table (.csv)</code>: Downloads this summary table as
+a CSV file.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="public-clonotype" class="section level3">
+<h3>Public Clonotype</h3>
+<p>This module helps identify <strong>“public clonotypes”</strong> –
+clonotypes that are shared across two or more different groups (e.g.,
+samples, clusters). It visualizes the overlap using a Venn diagram and
+allows you to inspect the details of the clonotypes found in specific
+intersections.</p>
+<div id="sidebar-panel-controls-10" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data.</li>
+<li><strong>Group by</strong>: Choose the metadata column that defines
+the groups you want to compare (e.g., <code>sample</code>,
+<code>seurat_clusters</code>).</li>
+<li><strong>Select groups to compare</strong>: (Appears after selecting
+“Group by”) This multi-select dropdown allows you to choose <strong>2 to
+4 groups</strong> from your dataset to compare in the Venn diagram.
+Choosing more than 4 groups can make the diagram difficult to
+interpret.</li>
+<li><strong>Table Value Unit</strong>: Choose how the abundance data is
+displayed in the details table (see Main Panel):
+<ul>
+<li><code>Count &amp; Proportion</code>: Show both raw cell counts and
+proportions.</li>
+<li><code>Count</code>: Show only raw cell counts.</li>
+<li><code>Proportion</code>: Show only the proportion within each
+group.</li>
+</ul></li>
+<li><strong>Common Plot Options</strong>: Adjust the
+<code>Plot Width</code> and <code>Plot Height</code> for the Venn
+diagram area. <em>(Note: Legend Position is less relevant for the Venn
+diagram itself)</em>.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-10" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Public Clonotypes Venn Diagram</strong>: Displays a
+<strong>Venn diagram</strong> illustrating the overlap of unique
+clonotypes (<code>raw_clonotype_id</code>) between the selected groups.
+<ul>
+<li>Each circle represents a group.</li>
+<li>The numbers indicate the count of <strong>unique clonotypes</strong>
+found exclusively in that section (either specific to one group or
+shared only by the groups in that intersection).</li>
+</ul></li>
+<li><strong>Clonotype Details</strong>:
+<ul>
+<li><strong>Select intersection to inspect</strong>: This dropdown menu
+lists all possible intersections shown in the Venn diagram (including
+sections unique to a single group). The number of unique clonotypes in
+each section is shown in parentheses. Select the intersection you want
+to investigate further.</li>
+<li><strong>Clonotype Table</strong>: This interactive data table
+displays detailed information about the clonotypes found <strong>only in
+the selected intersection</strong>.
+<ul>
+<li><code>raw_clonotype_id</code>: The identifier of the public
+clonotype.</li>
+<li>Subsequent columns show the <strong>abundance</strong> (count and/or
+proportion, based on your sidebar selection) of that specific clonotype
+within each of the originally selected groups. This allows you to see
+not just <em>that</em> a clone is shared, but also how prevalent it is
+in each group where it appears.</li>
+</ul></li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="antigen-prediction" class="section level3">
+<h3>Antigen Prediction</h3>
+<p>This module attempts to predict the antigen specificity of your
+clonotypes by matching their CDR3 sequences against a pre-compiled
+database of known antigen-specific receptors.</p>
+<div id="sidebar-panel-controls-11" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>VDJ Type</strong>: Select whether to analyze
+<strong>TCR</strong> or <strong>BCR</strong> data. This selection
+determines:
+<ol style="list-style-type: decimal">
+<li>Which antigen database to load (TCR or BCR).</li>
+<li>Which CDR3 column from your data to use for matching (TCR:
+<code>TCR_TRB_cdr3</code>; BCR: <code>BCR_IGH_cdr3</code>).</li>
+</ol></li>
+<li><strong>Download table (.csv)</strong>: Click this button to
+download the complete <strong>source antigen database file</strong> (TCR
+or BCR) that is being used for the comparison.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-11" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><p><strong>Antigen Prediction Table - Matched CDR3s</strong>: This
+interactive data table displays the results of the prediction.
+<strong>This table only shows clonotypes from your dataset that had an
+exact match in the database.</strong></p>
+<p>The module performs an “inner join,” meaning if a clonotype’s
+<code>TCR_TRB_cdr3</code> (for TCR) or <code>BCR_IGH_cdr3</code> (for
+BCR) sequence is not found in the database, it will <em>not</em> appear
+in this list.</p>
+<p>The resulting table shows:</p>
+<ul>
+<li><code>raw_clonotype_id</code>: Your clonotype’s ID.</li>
+<li><code>exact_subclonotype_id</code>: Your clonotype’s subclonotype
+ID.</li>
+<li>The matched CDR3 sequence (e.g., <code>TCR_TRB_cdr3</code>).</li>
+<li><code>Epitope_sequence</code>: The epitope sequence from the
+database.</li>
+<li><code>Epitope_gene</code>: The gene associated with the
+epitope.</li>
+<li><code>Epitope_species</code>: The species associated with the
+epitope.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+<div id="phylogenetic-tree-data-viewer" class="section level3">
+<h3>Phylogenetic Tree (Data Viewer)</h3>
+<p>This module is designed to facilitate the exploration of clonal
+evolution, specifically for B-cell receptors (BCRs). <strong>Currently,
+this module allows you to select a specific BCR clone (one that contains
+multiple related subclones) and view the raw data for all cells
+belonging to that clone.</strong> The functionality for building and
+displaying the actual phylogenetic tree is under development.</p>
+<p>This module is primarily intended for <strong>BCR analysis
+only</strong> at this time.</p>
+<div id="sidebar-panel-controls-12" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ul>
+<li><strong>Select Clone</strong>: This dropdown menu lists all BCR
+<code>raw_clonotype_id</code> values from your dataset that contain
+<strong>more than one</strong> unique
+<code>exact_subclonotype_id</code>. This pre-filtering helps you focus
+on clones that have likely undergone some level of diversification
+(potentially somatic hypermutation).</li>
+<li><strong>Display Clone Data</strong>: Click this button after
+selecting a clone. It triggers the server to filter the BCR data and
+display the relevant information in the main panel.</li>
+</ul>
+</div>
+<div id="main-panel-outputs-12" class="section level4">
+<h4>Main Panel: Outputs</h4>
+<ul>
+<li><strong>Plot Area</strong>: <em>(Currently inactive)</em> This area
+is reserved for displaying the phylogenetic tree visualization once the
+feature is implemented.</li>
+<li><strong>Selected Clone Data Table</strong>: This table displays the
+raw data rows from your BCR dataset that correspond to the clone you
+selected in the sidebar. This includes columns like:
+<ul>
+<li><code>barcode</code></li>
+<li><code>raw_clonotype_id</code></li>
+<li><code>exact_subclonotype_id</code></li>
+<li><code>BCR_IGH_full_length_nt</code> (the sequence potentially used
+for tree building)</li>
+<li><code>sample</code>, <code>seurat_clusters</code>,
+<code>BCR_IGH_c_gene</code>, etc. (any other available metadata).</li>
+</ul>
+This allows you to inspect the individual sequences and associated
+metadata for the cells within the selected evolving clone.</li>
+</ul>
+</div>
+</div>
 </div>
 </div>
 

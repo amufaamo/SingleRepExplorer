@@ -128,17 +128,13 @@ When the [Run] button is clicked, the following automated workflow is initiated 
 
 **Error Handling**: If you click [Run] without first uploading the mandatory .h5 file, an alert box will appear with the message: "Oops! Please upload the .h5 file first.".
 
-
-かしこまりました！`reductionPlot` モジュールのコードを拝見しました。
-クラスタリングの可視化だけでなく、**グループ名の変更機能**や、TCR/BCR情報と連携した**強力な検索＆ハイライト機能**まで搭載されていて、本当に素晴らしいですね！
-
-この機能に基づいた、英語の解説書を作成します。
-
 ---
 
-### 3.2. [Dimensional Plot] Tab
+# Analysis Tabs
 
+This section provides a detailed guide to the various analysis tabs available in SingleRepExplorer.
 
+## [Dimensional Plot] Tab
 
 This tab is the primary interface for visualizing your clustered single-cell data. It allows you to explore cell populations on a 2D map (like UMAP or t-SNE) and interact with the data by coloring, renaming, and highlighting specific cell groups.
 
@@ -192,13 +188,11 @@ This is an interactive table showing the underlying data for the plot.
 * It displays the selected "Group by" information (e.g., `seurat_clusters`) and the X/Y coordinates (e.g., `UMAP_1`, `UMAP_2`) for every cell.
 * **Download Table (.csv)**: Click to download this full data table as a CSV file.
 
-Here is the documentation for the Differential Gene Expression module.
-
 ---
 
-### 3.3.2. [Transcriptome] - Differential Expression
+## [Transcriptome] Tab
 
-
+### Differential Expression
 
 This module allows you to perform **Differential Gene Expression (DGE)** analysis to identify genes that are expressed at different levels between cell populations. It operates in two distinct modes.
 
@@ -264,22 +258,22 @@ The main panel's display changes based on the "Comparison Type" you selected.
 * **Differentially Expressed Features...**:
     * A complete, interactive data table showing the full results for the *single comparison* you performed.
     * `Download all table (.csv)`: Downloads this data table.
-    
-    Here is the documentation for the Clonotype Information module.
 
 ---
 
-### 3.4.1. [Repertoire] - Clonotype Information
+## [Repertoire] Tab
 
+This tab provides a suite of tools for in-depth analysis of immune repertoires.
 
+### Clonotype Information
 
 This tab serves as the primary data browser for your repertoire. It provides a comprehensive, filterable table of every unique clonotype identified in your dataset, along with all associated V(D)J gene usage and sequence information.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
 * **VDJ Type**: This is the only control. You must select whether you want to inspect the **TCR** or **BCR** clonotype table. The main panel will update based on this selection.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
 * **Clonotype Data Table**:
     This powerful, interactive table displays the detailed annotation for each unique clonotype.
@@ -295,62 +289,16 @@ This tab serves as the primary data browser for your repertoire. It provides a c
 
 * **Download table (.csv)**:
     Click this button to download the complete data table (respecting the "TCR" or "BCR" selection) as a CSV file for further analysis.
-    
-    
-Here is the documentation for the Unique Clones module.
 
----
-
-### 3.4.3. [Repertoire] - Unique Clones
-
-
-
-This module helps quantify the diversity of your repertoire by answering the question: "How many different types of clonotypes exist within each group?"
-
-It generates a bar chart showing the total count (or proportion) of unique clonotypes found within each user-defined group (e.g., sample, cluster).
-
-### Sidebar Panel: Controls
-
-* **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
-* **Group by**: Choose the metadata column used to group the cells (e.g., `sample`, `seurat_clusters`). The analysis will count unique clonotypes *per* group.
-* **Value Type**: Choose what the Y-axis of the bar chart represents:
-    * **Count**: Shows the absolute number of unique clonotypes in that group (e.g., "Cluster 1 has 500 unique clonotypes").
-    * **Percentage**: Shows the proportion of unique clonotypes relative to the total number of cells in that group (e.g., "In Cluster 1, 10% of cells are unique clonotypes").
-* **Common Plot Options**: Adjust the plot dimensions (`Plot Width`, `Plot Height`) and the legend position.
-
-### Main Panel: Outputs
-
-* **Plot**:
-    A bar chart where each bar represents a group (from your "Group by" selection). The height of the bar shows either the total count or the proportion of unique clonotypes, based on your "Value Type" selection.
-    * `Download plot (.pdf)`: Downloads the bar chart as a publication-ready PDF.
-
-* **Table**:
-    An interactive data table showing the summary data used to generate the plot. It includes:
-    * `Group`: The categories from your "Group by" selection.
-    * `unique_clonotype_count`: The absolute number of unique clonotypes.
-    * `total_clonotype_count`: The total number of cells (barcodes) in that group.
-    * `proportion_unique`: The calculated percentage (unique / total).
-    * `Download table (.csv)`: Downloads this summary table as a CSV file.
-
-
-わぁ、これは`Clonotype Frequency`（クロノタイプ頻度）と`Gene Usage`（遺伝子使用頻度）の**両方を分析できる、とても強力なモジュールですね！**
-UIとサーバーのコード、拝見しました。`analysis_target` で処理を切り替える設計、素晴らしいです！
-
-このモジュールのための解説書（英語）を作成しますね。
-
----
-
-### 3.4.2. [Repertoire] - Frequency Analysis
-
-
+### Frequency Analysis
 
 This versatile module allows you to analyze and visualize the frequencies of two different targets:
 1.  **Clonotype Frequency**: (e.g., the "Top 10" most abundant clonotypes)
 2.  **Gene Usage**: (e.g., the usage frequency of different V-genes)
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
-#### 1. Main Setup
+##### 1. Main Setup
 
 * **Analysis Target**: This crucial toggle switches the entire module's function.
     * `Clonotype Frequency`: Analyzes the abundance of the most frequent clonotypes (e.g., "clonotype1", "clonotype2").
@@ -358,7 +306,7 @@ This versatile module allows you to analyze and visualize the frequencies of two
 * **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
 * **Group by**: Choose the metadata column used to group the cells (e.g., `sample`, `seurat_clusters`).
 
-#### 2. Mode-Specific Options
+##### 2. Mode-Specific Options
 
 The options here change based on your "Analysis Target" selection.
 
@@ -367,7 +315,7 @@ The options here change based on your "Analysis Target" selection.
 * **If "Gene Usage" is selected:**
     * `Target Gene Column`: Select the specific gene segment you want to analyze. The choices update based on your VDJ Type (e.g., `TCR_TRB_v_gene`, `BCR_IGH_c_gene`, or combined V-J pairs like `TCR_TRA_v_j_pair`).
 
-#### 3. Plot & Display Options
+##### 3. Plot & Display Options
 
 * **Plot Type**: Choose the visualization style:
     * `Barplot (Dodged)`: Shows groups side-by-side for each item (clonotype/gene).
@@ -384,7 +332,7 @@ The options here change based on your "Analysis Target" selection.
 * **Horizontal Barplot**: (`Barplot` types only) Toggles the bar plots from vertical to horizontal.
 * **Common Plot Options**: Adjust the `Plot Width`, `Plot Height`, and `Legend Position`.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
 * **Plot**:
     Displays the configured bar chart or heatmap.
@@ -392,18 +340,72 @@ The options here change based on your "Analysis Target" selection.
 * **Table**:
     Shows the summary data table used to generate the plot, with exact counts and percentages.
     * `Download table (.csv)`: Click to download this summary data as a CSV file.
-    
-Here is the documentation for the Clonal Length module.
 
----
+### Unique Clones
 
-### 3.4.5. [Repertoire] - Clonal Length
+This module helps quantify the diversity of your repertoire by answering the question: "How many different types of clonotypes exist within each group?"
 
+It generates a bar chart showing the total count (or proportion) of unique clonotypes found within each user-defined group (e.g., sample, cluster).
 
+#### Sidebar Panel: Controls
+
+* **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
+* **Group by**: Choose the metadata column used to group the cells (e.g., `sample`, `seurat_clusters`). The analysis will count unique clonotypes *per* group.
+* **Value Type**: Choose what the Y-axis of the bar chart represents:
+    * **Count**: Shows the absolute number of unique clonotypes in that group (e.g., "Cluster 1 has 500 unique clonotypes").
+    * **Percentage**: Shows the proportion of unique clonotypes relative to the total number of cells in that group (e.g., "In Cluster 1, 10% of cells are unique clonotypes").
+* **Common Plot Options**: Adjust the plot dimensions (`Plot Width`, `Plot Height`) and the legend position.
+
+#### Main Panel: Outputs
+
+* **Plot**:
+    A bar chart where each bar represents a group (from your "Group by" selection). The height of the bar shows either the total count or the proportion of unique clonotypes, based on your "Value Type" selection.
+    * `Download plot (.pdf)`: Downloads the bar chart as a publication-ready PDF.
+
+* **Table**:
+    An interactive data table showing the summary data used to generate the plot. It includes:
+    * `Group`: The categories from your "Group by" selection.
+    * `unique_clonotype_count`: The absolute number of unique clonotypes.
+    * `total_clonotype_count`: The total number of cells (barcodes) in that group.
+    * `proportion_unique`: The calculated percentage (unique / total).
+    * `Download table (.csv)`: Downloads this summary table as a CSV file.
+
+### Clonal Abundance
+
+This module visualizes the **clonal abundance distribution** for each group. It plots the abundance (either as a proportion or raw count) of each clonotype against its rank within its group. This type of plot is useful for assessing clonal dominance and evenness – for example, a steep drop-off indicates that a few clones dominate the repertoire, while a flatter curve suggests a more even distribution.
+
+#### Sidebar Panel: Controls
+
+* **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
+* **Group by**: Choose the metadata column used to group the cells (e.g., `sample`, `seurat_clusters`). The plot will show a separate line for each group.
+* **Y-Axis Unit**: Choose what the Y-axis represents:
+    * `Percentage`: Shows the proportion of each clonotype relative to the total number of cells *within that group*.
+    * `Count`: Shows the raw number of cells for each clonotype.
+* **Filter Groups**: A list of checkboxes will appear based on your "Group by" selection. You can uncheck groups to exclude them from the analysis and plot.
+* **Common Plot Options**: Adjust the `Plot Width`, `Plot Height`, and `Legend Position`.
+
+#### Main Panel: Outputs
+
+* **Plot**:
+    Displays a **rank-abundance plot**.
+    * **X-axis**: Shows the rank of the clonotypes within each group (log scale), ordered from most abundant (rank 1) to least abundant.
+    * **Y-axis**: Shows the abundance of the clonotype at that rank, either as a percentage or count, based on your selection.
+    * **Color**: Each line represents a different group defined by your "Group by" selection.
+    * `Download plot (.pdf)`: Downloads the rank-abundance plot as a publication-ready PDF.
+* **Table**:
+    An interactive data table showing the data used for the plot. It includes:
+    * The grouping column (e.g., `sample`).
+    * `raw_clonotype_id`: The identifier for each clonotype.
+    * `count`: The raw number of cells for that clonotype in that group.
+    * `proportion`: The calculated proportion of that clonotype within its group.
+    * `rank`: The rank of that clonotype within its group based on abundance.
+    * `Download table (.csv)`: Downloads this summary data as a CSV file.
+
+### Clonal Length
 
 This module analyzes the length distribution of specific repertoire sequences, most commonly the CDR3. It allows you to visualize and compare whether different cell groups (e.g., samples or clusters) have different characteristic lengths for their receptor sequences.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
 * **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
 * **Target Column (for Length Calculation)**: This is the key control. Select the sequence you wish to measure. The choices update based on your VDJ Type.
@@ -421,7 +423,7 @@ This module analyzes the length distribution of specific repertoire sequences, m
 * **Horizontal Barplot** (Bar plots only): Toggles the bar plots from vertical to horizontal.
 * **Common Plot Options**: Adjust the `Plot Width`, `Plot Height`, and `Legend Position`.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
 * **Plot**:
     Displays the configured bar chart or boxplot showing the length distributions.
@@ -429,66 +431,54 @@ This module analyzes the length distribution of specific repertoire sequences, m
 * **Table**:
     An interactive data table showing the summary data used to generate the bar charts. It lists each group, each observed sequence length, the raw count, and the calculated percentage. (Note: The boxplot uses the non-summarized raw length data).
     * `Download table (.csv)`: Click to download this summary data as a CSV file.
-    
-Here is the documentation for the Track Clonotype module.
 
----
-
-### 3.4.7. [Repertoire] - Track Clonotype
-
-
+### Track Clonotype
 
 This powerful module allows you to track the abundance of specific, user-selected clonotypes across different groups (e.g., samples, clusters, or time points). It is ideal for visualizing how particular clones expand, contract, or are shared between populations.
 
 This module can generate two types of visualizations: a **Stacked Bar** chart or an **Alluvial Plot**.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
 * **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
-* **クローン識別子列 (Clone Identifier Column)**: Choose which column to use for identifying clonotypes. This is a crucial setting.
+* **Clone Identifier Column**: Choose which column to use for identifying clonotypes. This is a crucial setting.
     * e.g., `raw_clonotype_id`, `TCR_pair_CTaa` (for paired CDR3 amino acids), or `BCR_IGH_cdr3`.
-* **追跡対象クローン (Target Clonotypes)**: Based on your column selection, this box allows you to select one or *multiple* clonotypes from the list that you wish to track.
+* **Target Clonotypes**: Based on your column selection, this box allows you to select one or *multiple* clonotypes from the list that you wish to track.
 * **Group by**: Choose the metadata column that defines your groups for tracking (e.g., `sample`, `seurat_clusters`).
-* **プロットタイプ (Plot Type)**: Select the visualization style:
-    * `積み上げ棒グラフ (Stacked Bar)`: Shows a bar for each group, where each segment's height represents the abundance of a tracked clonotype.
+* **Plot Type**: Select the visualization style:
+    * `Stacked Bar`: Shows a bar for each group, where each segment's height represents the abundance of a tracked clonotype.
     * `Alluvial Plot`: Shows the "flow" of the tracked clonotypes from one group to the next. This is excellent for visualizing changes across ordered groups (like time points).
-* **表示値 (Value Type)**: Toggles the Y-axis.
-    * `頻度 (%) (frequency)`: Shows the clonotype's abundance as a percentage *within that group's total cells*.
-    * `細胞数/リード数 (count)`: Shows the raw cell count for that clonotype in that group.
-* **グループ順序 (Group Order)**: Enter a comma-separated list to define the exact order of the groups on the X-axis (e.g., `Sample_A, Sample_B, Sample_C`). This is essential for Alluvial plots.
+* **Value Type**: Toggles the Y-axis.
+    * `Frequency (%)`: Shows the clonotype's abundance as a percentage *within that group's total cells*.
+    * `Count`: Shows the raw cell count for that clonotype in that group.
+* **Group Order**: Enter a comma-separated list to define the exact order of the groups on the X-axis (e.g., `Sample_A, Sample_B, Sample_C`). This is essential for Alluvial plots.
 * **Legend/Plot Options**: Adjust the legend position, plot width, and plot height.
 * **Download Buttons**: Buttons to download the generated plot and the underlying data table.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
-* **クローン追跡プロット (Clonotype Tracking Plot)**:
+* **Clonotype Tracking Plot**:
     Displays the Stacked Bar or Alluvial plot.
     * **Stacked Bar**: Useful for seeing the relative contribution of each tracked clone to each group.
     * **Alluvial Plot**: Useful for seeing the "flow" and proportional changes of specific clones as they move between groups.
     * `Download plot (.pdf)`: Downloads the visualization as a publication-ready PDF.
-* **追跡結果テーブル (Tracking Results Table)**:
+* **Tracking Results Table**:
     An interactive data table showing the raw data for the plot. It lists each tracked clonotype, each group, its raw count (`n`), the total cells in that group (`total_n`), and its calculated frequency (`frequency`).
     * `Download table (.csv)`: Downloads this summary data as a CSV file.
-    
-Here is the documentation for the Clonal Overlap module.
 
----
-
-### 3.4.8. [Repertoire] - Clonal Overlap
-
-
+### Clonal Overlap
 
 This module is used to compare the similarity between the repertoires of different groups. It calculates an "overlap coefficient" for every pair of groups and displays the results as a heatmap, allowing you to quickly see which groups share the most clonotypes.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
 * **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
-* **クローン識別子列 (Clone Identifier Column)**: This is a key setting. You must define what constitutes a "clonotype" for the overlap calculation.
+* **Clone Identifier Column**: This is a key setting. You must define what constitutes a "clonotype" for the overlap calculation.
     * e.g., `TCR_pair_CTaa` (paired CDR3 amino acid sequence), `raw_clonotype_id`, or `BCR_IGH_cdr3`.
 * **Group by**: Choose the metadata column that defines the groups you want to compare (e.g., `sample`, `seurat_clusters`). You must have at least two groups to perform an analysis.
 * **Common Plot Options**: Adjust the `Plot Width`, `Plot Height`, and `Legend Position`.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
 * **Plot**:
     This panel displays a **heatmap** of the overlap scores.
@@ -502,29 +492,20 @@ This module is used to compare the similarity between the repertoires of differe
 * **Table**:
     An interactive data table showing the raw matrix of overlap coefficients used to generate the plot.
     * The rows and columns represent the groups, and the cells contain the calculated overlap values (rounded to 3 decimal places).
-    
-    
-はい、承知いたしました！`clonalProportion` モジュールのコードを拝見しました。クローンサイズ（同じクローンが何回出現したか）に基づいて、各グループがどのようなクローンサイズ分布を持っているかを可視化する機能ですね！✨
 
-このモジュールのための解説書（英語）を作成します。
-
----
-
-### 3.4.9. [Repertoire] - Clonal Proportion
-
-
+### Clonal Proportion
 
 This module helps you understand the **clonal expansion structure** within each group (e.g., sample or cluster). It categorizes clonotypes based on their size (i.e., how many cells share the same clonotype) and displays the proportion of cells belonging to each size category as a stacked bar chart. This allows you to easily compare whether some groups are dominated by large, expanded clones while others consist mostly of unique or rare clones.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
 * **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
 * **Group by**: Choose the metadata column used to group the cells (e.g., `sample`, `seurat_clusters`). The analysis will calculate proportions *within* each of these groups.
-* **クローン定義方法 (Clone Definition)**: Select which column defines a unique clonotype.
+* **Clone Definition**: Select which column defines a unique clonotype.
     * `Clonotype ID` (`raw_clonotype_id`): Uses the pre-defined clonotype ID (often based on shared V/J genes and CDR3 sequence similarity).
     * `CDR3 nucleotide` (`nt`): Defines clonotypes based on the exact CDR3 nucleotide sequence (will likely result in more "unique" clones).
     * `CDR3 amino acid` (`aa`): Defines clonotypes based on the exact CDR3 amino acid sequence.
-* **対象チェーン (Chain)** (Appears after selecting VDJ type, primarily for TCR): Choose whether the analysis should consider both chains, or only TRA or TRB when defining clonotypes based on CDR3 sequences. *(Note: Current implementation calculates counts based on the 'Clone Definition' column irrespective of this selection, but it might be used for filtering in future versions)*.
+* **Chain** (Appears after selecting VDJ type, primarily for TCR): Choose whether the analysis should consider both chains, or only TRA or TRB when defining clonotypes based on CDR3 sequences. *(Note: Current implementation calculates counts based on the 'Clone Definition' column irrespective of this selection, but it might be used for filtering in future versions)*.
 * **Clonal Size Categories (Upper Limits)**: These numeric inputs define the boundaries for categorizing clonotype sizes based on their count (`Ct`).
     1.  **Unique Max Count**: Clonotypes with a count less than or equal to this value (e.g., `1`) are categorized as "Unique".
     2.  **Rare Max Count**: Clonotypes with a count greater than the 'Unique' limit but less than or equal to this value (e.g., `5`) are categorized as "Rare".
@@ -536,42 +517,64 @@ This module helps you understand the **clonal expansion structure** within each 
 * **Legend/Plot Options**: Adjust the legend position, plot width, and plot height.
 * **Download Buttons**: Buttons to download the plot and the data table.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
-* **グループ別クローンサイズ割合 (Clonal Proportion by Size Category Plot)**:
+* **Clonal Proportion by Size Category Plot**:
     Displays a **stacked bar chart**.
     * **X-axis**: Shows the different groups selected via "Group by".
     * **Y-axis**: Represents 100% for each group.
     * **Fill Colors**: Each colored segment within a bar represents one of the clonal size categories defined in the sidebar (Unique, Rare, Small, etc.). The height of the segment shows the percentage of cells within that group that belong to clonotypes of that size category.
     * `Download plot (.pdf)`: Downloads the stacked bar chart as a publication-ready PDF.
-* **割合データテーブル (Proportion Data Table)**:
+* **Proportion Data Table**:
     An interactive data table showing the summary data used for the plot. It includes:
     * The grouping column (e.g., `sample`).
     * `category`: The clonal size category label.
     * `n`: The number of *clonotypes* belonging to that category in that group.
     * `percentage`: The percentage of *cells* in that group belonging to clonotypes of that category (this is what's plotted).
     * `Download table (.csv)`: Downloads this summary table as a CSV file.
-    
-Here is the documentation for the Antigen Prediction module.
 
----
+### Public Clonotype
 
-### 3.4.10. [Repertoire] - Antigen Prediction
+This module helps identify **"public clonotypes"** – clonotypes that are shared across two or more different groups (e.g., samples, clusters). It visualizes the overlap using a Venn diagram and allows you to inspect the details of the clonotypes found in specific intersections.
 
+#### Sidebar Panel: Controls
 
+* **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
+* **Group by**: Choose the metadata column that defines the groups you want to compare (e.g., `sample`, `seurat_clusters`).
+* **Select groups to compare**: (Appears after selecting "Group by") This multi-select dropdown allows you to choose **2 to 4 groups** from your dataset to compare in the Venn diagram. Choosing more than 4 groups can make the diagram difficult to interpret.
+* **Table Value Unit**: Choose how the abundance data is displayed in the details table (see Main Panel):
+    * `Count & Proportion`: Show both raw cell counts and proportions.
+    * `Count`: Show only raw cell counts.
+    * `Proportion`: Show only the proportion within each group.
+* **Common Plot Options**: Adjust the `Plot Width` and `Plot Height` for the Venn diagram area. *(Note: Legend Position is less relevant for the Venn diagram itself)*.
+
+#### Main Panel: Outputs
+
+* **Public Clonotypes Venn Diagram**:
+    Displays a **Venn diagram** illustrating the overlap of unique clonotypes (`raw_clonotype_id`) between the selected groups.
+    * Each circle represents a group.
+    * The numbers indicate the count of **unique clonotypes** found exclusively in that section (either specific to one group or shared only by the groups in that intersection).
+
+* **Clonotype Details**:
+    * **Select intersection to inspect**: This dropdown menu lists all possible intersections shown in the Venn diagram (including sections unique to a single group). The number of unique clonotypes in each section is shown in parentheses. Select the intersection you want to investigate further.
+    * **Clonotype Table**: This interactive data table displays detailed information about the clonotypes found **only in the selected intersection**.
+        * `raw_clonotype_id`: The identifier of the public clonotype.
+        * Subsequent columns show the **abundance** (count and/or proportion, based on your sidebar selection) of that specific clonotype within each of the originally selected groups. This allows you to see not just *that* a clone is shared, but also how prevalent it is in each group where it appears.
+
+### Antigen Prediction
 
 This module attempts to predict the antigen specificity of your clonotypes by matching their CDR3 sequences against a pre-compiled database of known antigen-specific receptors.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
 * **VDJ Type**: Select whether to analyze **TCR** or **BCR** data. This selection determines:
     1.  Which antigen database to load (TCR or BCR).
     2.  Which CDR3 column from your data to use for matching (TCR: `TCR_TRB_cdr3`; BCR: `BCR_IGH_cdr3`).
-* **テーブルダウンロード (Download table (.csv))**: Click this button to download the complete **source antigen database file** (TCR or BCR) that is being used for the comparison.
+* **Download table (.csv)**: Click this button to download the complete **source antigen database file** (TCR or BCR) that is being used for the comparison.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
-* **抗原予測結果テーブル (Antigen Prediction Table - Matched CDR3s)**:
+* **Antigen Prediction Table - Matched CDR3s**:
     This interactive data table displays the results of the prediction. **This table only shows clonotypes from your dataset that had an exact match in the database.**
     
     The module performs an "inner join," meaning if a clonotype's `TCR_TRB_cdr3` (for TCR) or `BCR_IGH_cdr3` (for BCR) sequence is not found in the database, it will *not* appear in this list.
@@ -584,28 +587,18 @@ This module attempts to predict the antigen specificity of your clonotypes by ma
     * `Epitope_gene`: The gene associated with the epitope.
     * `Epitope_species`: The species associated with the epitope.
 
-はい、承知いたしました！`phylogeneticTree` モジュールのコードを拝見しました。
-
-**注意点:** 現在のコードを見ると、`dowser` を使った系統樹の構築 (`getTrees`) や `ggtree` を使ったプロット (`ggtree`, `geom_tippoint` など) の部分はコメントアウトされているか、実装されていないようです。現在の機能としては、**特定のBCRクローン（複数のサブクローンを持つもの）を選択し、そのクローンに属する細胞の生データをテーブルで表示する**ことが中心のようですね。
-
-この現在の機能に基づいた解説書（英語）を作成します。将来的に系統樹の描画機能が実装された際に、解説を追記できます。
-
----
-
-### 3.4.11. [Repertoire] - Phylogenetic Tree (Data Viewer)
-
-
+### Phylogenetic Tree (Data Viewer)
 
 This module is designed to facilitate the exploration of clonal evolution, specifically for B-cell receptors (BCRs). **Currently, this module allows you to select a specific BCR clone (one that contains multiple related subclones) and view the raw data for all cells belonging to that clone.** The functionality for building and displaying the actual phylogenetic tree is under development.
 
 This module is primarily intended for **BCR analysis only** at this time.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
 * **Select Clone**: This dropdown menu lists all BCR `raw_clonotype_id` values from your dataset that contain **more than one** unique `exact_subclonotype_id`. This pre-filtering helps you focus on clones that have likely undergone some level of diversification (potentially somatic hypermutation).
 * **Display Clone Data**: Click this button after selecting a clone. It triggers the server to filter the BCR data and display the relevant information in the main panel.
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
 * **Plot Area**: *(Currently inactive)* This area is reserved for displaying the phylogenetic tree visualization once the feature is implemented.
 * **Selected Clone Data Table**:
@@ -617,78 +610,3 @@ This module is primarily intended for **BCR analysis only** at this time.
     * `sample`, `seurat_clusters`, `BCR_IGH_c_gene`, etc. (any other available metadata).
     
     This allows you to inspect the individual sequences and associated metadata for the cells within the selected evolving clone.
-    
-はい、承知いたしました！`clonalAbundance` モジュールのコードを拝見しました。クローンの存在量（Abundance）をランク順にプロットして、グループ間の分布の違いを比較する機能ですね！📈
-
-このモジュールのための解説書（英語）を作成します。
-
----
-
-### 3.4.4. [Repertoire] - Clonal Abundance
-
-
-
-This module visualizes the **clonal abundance distribution** for each group. It plots the abundance (either as a proportion or raw count) of each clonotype against its rank within its group. This type of plot is useful for assessing clonal dominance and evenness – for example, a steep drop-off indicates that a few clones dominate the repertoire, while a flatter curve suggests a more even distribution.
-
-### Sidebar Panel: Controls
-
-* **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
-* **Group by**: Choose the metadata column used to group the cells (e.g., `sample`, `seurat_clusters`). The plot will show a separate line for each group.
-* **Y-Axis Unit**: Choose what the Y-axis represents:
-    * `Percentage`: Shows the proportion of each clonotype relative to the total number of cells *within that group*.
-    * `Count`: Shows the raw number of cells for each clonotype.
-* **Filter Groups**: A list of checkboxes will appear based on your "Group by" selection. You can uncheck groups to exclude them from the analysis and plot.
-* **Common Plot Options**: Adjust the `Plot Width`, `Plot Height`, and `Legend Position`.
-
-### Main Panel: Outputs
-
-* **Plot**:
-    Displays a **rank-abundance plot**.
-    * **X-axis**: Shows the rank of the clonotypes within each group (log scale), ordered from most abundant (rank 1) to least abundant.
-    * **Y-axis**: Shows the abundance of the clonotype at that rank, either as a percentage or count, based on your selection.
-    * **Color**: Each line represents a different group defined by your "Group by" selection.
-    * `Download plot (.pdf)`: Downloads the rank-abundance plot as a publication-ready PDF.
-* **Table**:
-    An interactive data table showing the data used for the plot. It includes:
-    * The grouping column (e.g., `sample`).
-    * `raw_clonotype_id`: The identifier for each clonotype.
-    * `count`: The raw number of cells for that clonotype in that group.
-    * `proportion`: The calculated proportion of that clonotype within its group.
-    * `rank`: The rank of that clonotype within its group based on abundance.
-    * `Download table (.csv)`: Downloads this summary data as a CSV file.
-    
-はい、承知いたしました！`publicClonotype` モジュールのコードを拝見しました。複数のグループ間で共通して存在するクローン（Public Clonotype）を特定し、ベン図で可視化する機能ですね！選択した共通部分の詳細を確認できるのも便利です！📊
-
-このモジュールのための解説書（英語）を作成します。
-
----
-
-### 3.4.9. [Repertoire] - Public Clonotype
-
-
-
-This module helps identify **"public clonotypes"** – clonotypes that are shared across two or more different groups (e.g., samples, clusters). It visualizes the overlap using a Venn diagram and allows you to inspect the details of the clonotypes found in specific intersections.
-
-### Sidebar Panel: Controls
-
-* **VDJ Type**: Select whether to analyze **TCR** or **BCR** data.
-* **Group by**: Choose the metadata column that defines the groups you want to compare (e.g., `sample`, `seurat_clusters`).
-* **Select groups to compare**: (Appears after selecting "Group by") This multi-select dropdown allows you to choose **2 to 4 groups** from your dataset to compare in the Venn diagram. Choosing more than 4 groups can make the diagram difficult to interpret.
-* **Table Value Unit**: Choose how the abundance data is displayed in the details table (see Main Panel):
-    * `Count & Proportion`: Show both raw cell counts and proportions.
-    * `Count`: Show only raw cell counts.
-    * `Proportion`: Show only the proportion within each group.
-* **Common Plot Options**: Adjust the `Plot Width` and `Plot Height` for the Venn diagram area. *(Note: Legend Position is less relevant for the Venn diagram itself)*.
-
-### Main Panel: Outputs
-
-* **Public Clonotypes Venn Diagram**:
-    Displays a **Venn diagram** illustrating the overlap of unique clonotypes (`raw_clonotype_id`) between the selected groups.
-    * Each circle represents a group.
-    * The numbers indicate the count of **unique clonotypes** found exclusively in that section (either specific to one group or shared only by the groups in that intersection).
-
-* **Clonotype Details**:
-    * **Select intersection to inspect**: This dropdown menu lists all possible intersections shown in the Venn diagram (including sections unique to a single group). The number of unique clonotypes in each section is shown in parentheses. Select the intersection you want to investigate further.
-    * **Clonotype Table**: This interactive data table displays detailed information about the clonotypes found **only in the selected intersection**.
-        * `raw_clonotype_id`: The identifier of the public clonotype.
-        * Subsequent columns show the **abundance** (count and/or proportion, based on your sidebar selection) of that specific clonotype within each of the originally selected groups. This allows you to see not just *that* a clone is shared, but also how prevalent it is in each group where it appears.
