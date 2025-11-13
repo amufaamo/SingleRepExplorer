@@ -151,7 +151,7 @@ source('utils.R', local = TRUE)
 ui <- navbarPage(
   includeCSS("style.css"),
   title = "SingleRepExplorer: Web Application for Single Cell Repertoire Analysis",
-  footer = shiny::HTML("<div style='text-align: center; padding: 10px;'>© 2025 SiCR. All rights reserved.</div>"),
+  footer = shiny::HTML("<div style='text-align: center; padding: 10px;'>© 2025 SingleRepExplorer. All rights reserved.</div>"),
   
   tabPanel(
     "Upload and Run",

@@ -8,11 +8,15 @@ date: "2025-10-24"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# {.tabset}
+
+## 1. About
+
 **SingleRepExplorer** is an interactive web application, built using the R/Shiny framework, designed for the comprehensive analysis of single-cell immune profiling data. It addresses the significant challenge of integrating single-cell RNA sequencing (scRNA-seq) transcriptomics with paired T-cell receptor (TCR) and B-cell receptor (BCR) repertoire analysis.
 
 The tool is specifically designed to be accessible to biologists and researchers who may have limited bioinformatics or command-line expertise. It provides a user-friendly graphical interface that streamlines complex analytical workflows, from data input to publication-ready visualizations.
 
-# Core Functionalities
+### Core Functionalities
 
 1.  **Data Input and Processing:**
     * Accepts standard output files from 10x Genomics Cell Ranger (e.g., `filtered_feature_bc_matrix.h5` and `filtered_contig_annotations.csv`).
@@ -34,8 +38,7 @@ The tool is specifically designed to be accessible to biologists and researchers
 By integrating these diverse functionalities into a single workbench, SingleRepExplorer significantly reduces the time and effort required for analysis, empowering researchers to interactively explore and interpret complex single-cell immune profiling datasets.
 
 
-
-## Getting Started
+## 2. Getting Started
 
 `SingleRepExplorer` is distributed as a Docker container, making it easy to run on any system (Windows, macOS, or Linux). The only prerequisite is to have **Docker Desktop** installed.
 
@@ -86,13 +89,13 @@ To stop the application, simply return to your terminal window where the command
 
 
 
-# [Upload and Run] Tab: Data Upload and Processing
+## 3. Data Upload and Processing
 
 
 
 The first step in using `SingleRepExplorer` is to upload your dataset via this tab. The application is designed to process outputs from the 10x Genomics Cell Ranger pipeline.
 
-## 1. Files to Upload
+### 1. Files to Upload
 
 You must upload the gene expression data, and you can optionally provide TCR and/or BCR repertoire files.
 
@@ -105,7 +108,12 @@ You must upload the gene expression data, and you can optionally provide TCR and
 
 After selecting a file, a green "✅ Uploaded!" status message will appear beside the button to confirm the upload.
 
-## 2. Running the Analysis
+```{r echo=FALSE, out.width="100%"}
+knitr::include_graphics("./images/upload_and_run.jpg")
+```
+
+
+### 2. Running the Analysis
 
 Once you have uploaded the necessary files (at minimum, the .h5 file), click the blue **[Run]** button to start the analysis.
 
@@ -130,11 +138,10 @@ When the [Run] button is clicked, the following automated workflow is initiated 
 
 ---
 
-# Analysis Tabs
 
 This section provides a detailed guide to the various analysis tabs available in SingleRepExplorer.
 
-## [Dimensional Plot] Tab
+## 4. Dimensional Plot
 
 This tab is the primary interface for visualizing your clustered single-cell data. It allows you to explore cell populations on a 2D map (like UMAP or t-SNE) and interact with the data by coloring, renaming, and highlighting specific cell groups.
 
@@ -188,11 +195,42 @@ This is an interactive table showing the underlying data for the plot.
 * It displays the selected "Group by" information (e.g., `seurat_clusters`) and the X/Y coordinates (e.g., `UMAP_1`, `UMAP_2`) for every cell.
 * **Download Table (.csv)**: Click to download this full data table as a CSV file.
 
----
 
-## [Transcriptome] Tab
+## 5. Expression Visualization
 
-### Differential Expression
+This tab allows you to visualize the expression levels of specific genes across your single-cell dataset using several common plot types. The plot updates interactively as you change the settings, without requiring a "Run" button.
+
+### Sidebar Panel: Controls
+
+#### 1. Plot & Gene Selection
+
+* **Plot type**: Select the type of visualization.
+    * **Feature plot**: Overlays gene expression onto a dimensional reduction plot (e.g., UMAP).
+    * **Violin plot**: Shows the distribution of gene expression for each group.
+    * **Dot plot**: Displays the average expression and percentage of cells expressing a gene for each group.
+    * **Heatmap**: Shows the expression of multiple genes across multiple cell groups.
+* **Enter or select gene names**: Type or select one or more gene names to visualize (e.g., `CD3E`, `CD19`). The list is populated from your dataset.
+
+#### 2. Plot-Specific Options
+
+The available options change based on the selected "Plot type":
+
+* **Group by**: (Available for `Violin plot`, `Dot plot`, `Heatmap`) Select the metadata column to group cells by (e.g., `seurat_clusters`, `sample`).
+* **Reduction**: (Available for `Feature plot`) Select the dimensional reduction plot to use (e.g., `UMAP`, `TSNE`).
+* **Point Size**: (Available for `Feature plot`, `Violin plot`) Adjust the size of the individual dots.
+* **Plot Width / Height**: Adjust the dimensions of the plot in pixels.
+* **Legend Position**: Control where the plot legend is placed.
+
+### Main Panel: Outputs
+
+#### 1. Plot
+
+This area displays the gene expression plot based on your selections.
+
+* **Download plot (.pdf)**: Click to download the current plot as a high-resolution, publication-ready PDF, saved using the dimensions specified in the sidebar.
+
+
+## 5. Differential Expression
 
 This module allows you to perform **Differential Gene Expression (DGE)** analysis to identify genes that are expressed at different levels between cell populations. It operates in two distinct modes.
 
@@ -261,7 +299,7 @@ The main panel's display changes based on the "Comparison Type" you selected.
 
 ---
 
-## [Repertoire] Tab
+## [Repertoire] Tab {.tabset}
 
 This tab provides a suite of tools for in-depth analysis of immune repertoires.
 
