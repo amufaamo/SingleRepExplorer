@@ -61,12 +61,12 @@ Once Docker is running, open your command-line terminal.
 Copy and paste the following command into your terminal, then press **Enter**:
 
 ```bash
-docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:v1.1.10
+docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:v1.1.11
 ```
 
 This command will automatically:
 
-1.  Download (pull) the `amufaamo/singlerepexplorer:v1.1.10` image from Docker Hub, if you don't have it.
+1.  Download (pull) the `amufaamo/singlerepexplorer:v1.1.11` image from Docker Hub, if you don't have it.
 2.  Start the application.
 
 <!-- end list -->
