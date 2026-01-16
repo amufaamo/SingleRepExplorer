@@ -293,8 +293,9 @@ run_seurat_object <- function(myReactives) {
 
     # --- スケーリング ---
     message("[Seurat Process Step 4/7] Scaling data...")
-    all.genes <- rownames(seurat_object)
-    seurat_object <- Seurat::ScaleData(seurat_object, features = all.genes)
+    # all.genes <- rownames(seurat_object)
+    # seurat_object <- Seurat::ScaleData(seurat_object, features = all.genes)
+    seurat_object <- Seurat::ScaleData(seurat_object)
     message("Completed ScaleData.")
 
     # --- PCA ---
