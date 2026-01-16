@@ -108,16 +108,18 @@ uploadCellrangerServer <- function(id, myReactives) {
           myReactives <- run_seurat_object(myReactives) # この関数は内部でSeuratオブジェクトを更新
 
           # (4) scTypeによる細胞タイピング
-          incProgress(0.1, detail = "Performing cell typing with scType...")
-          tryCatch({
-            message("--- Starting scType analysis ---")
-            myReactives$seurat_object <- run_sctype_and_update_seurat(myReactives$seurat_object)
-            message("--- scType analysis finished successfully ---")
-          }, error = function(e) {
-            message("!!!!!!!!!! scType Error Caught !!!!!!!!!!")
-            message("Error message: ", e$message)
-            shinyalert::shinyalert("scType Error", paste("Cell typing failed:", e$message), type = "error")
-          })
+          # User requested to skip sctype to save memory
+          incProgress(0.1, detail = "Skipping cell typing (scType)...")
+          message("--- Skipping scType analysis as requested ---")
+          # tryCatch({
+          #   message("--- Starting scType analysis ---")
+          #   myReactives$seurat_object <- run_sctype_and_update_seurat(myReactives$seurat_object)
+          #   message("--- scType analysis finished successfully ---")
+          # }, error = function(e) {
+          #   message("!!!!!!!!!! scType Error Caught !!!!!!!!!!")
+          #   message("Error message: ", e$message)
+          #   shinyalert::shinyalert("scType Error", paste("Cell typing failed:", e$message), type = "error")
+          # })
 
           # (5) TCRデータ処理
           if (!is.null(myReactives$tcr_path)) {
