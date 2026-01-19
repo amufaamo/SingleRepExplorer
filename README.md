@@ -1,51 +1,51 @@
 # SingleRepExplorer
 
-SingleRepExplorerは、シングルセル解析のためのインタラクティブな可視化ツールです。
+An interactive visualization tool for single-cell analysis.
 
-## 📖 マニュアル
+## 📖 Manual
 
-詳細なマニュアルは以下のリンクからご覧いただけます：
+For detailed documentation, please visit:
 
-**[SingleRepExplorer マニュアル](https://amufaamo.github.io/SingleRepExplorer/manual.html)**
+**[SingleRepExplorer Manual](https://amufaamo.github.io/SingleRepExplorer/manual.html)**
 
-## 🚀 概要
+## 🚀 Overview
 
-SingleRepExplorerは、Shinyを使用したWebベースのインタラクティブなシングルセル解析ツールです。
-Seuratオブジェクトを使用して、以下のような解析と可視化が可能です：
+SingleRepExplorer is a web-based interactive single-cell analysis tool built with Shiny.
+Using Seurat objects, it provides the following analyses and visualizations:
 
-- UMAPプロット
-- バイオリンプロット
-- フィーチャープロット
-- ドットプロット
-- クラスター解析
+- UMAP plots
+- Violin plots
+- Feature plots
+- Dot plots
+- Cluster analysis
 
-## 🐳 Dockerでの使用
+## 🐳 Docker Usage
 
-このプロジェクトはDockerコンテナとして実行できます。
+This project can be run as a Docker container.
 
 ```bash
-# イメージのビルド
+# Build the image
 docker build -t singlerepexplorer .
 
-# コンテナの実行
+# Run the container
 docker run -p 3838:3838 singlerepexplorer
 ```
 
-## 📂 プロジェクト構造
+## 📂 Project Structure
 
 ```
 SingleRepExplorer/
-├── app/              # Shinyアプリケーション
-├── docs/             # GitHub Pagesドキュメント
-├── Dockerfile        # Dockerイメージ設定
-└── manual.Rmd        # マニュアルソース
+├── app/              # Shiny application
+├── docs/             # GitHub Pages documentation
+├── Dockerfile        # Docker image configuration
+└── manual.Rmd        # Manual source
 ```
 
-## 📝 ライセンス
+## 📝 License
 
-詳細はマニュアルをご確認ください。
+Please refer to the manual for details.
 
-## 🔗 リンク
+## 🔗 Links
 
 - [GitHub Pages](https://amufaamo.github.io/SingleRepExplorer/)
-- [マニュアル](https://amufaamo.github.io/SingleRepExplorer/manual.html)
+- [Manual](https://amufaamo.github.io/SingleRepExplorer/manual.html)
