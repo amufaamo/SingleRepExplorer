@@ -21,7 +21,15 @@ Using Seurat objects, it provides the following analyses and visualizations:
 
 ## 🐳 Docker Usage
 
-This project can be run as a Docker container.
+The easiest way to run SingleRepExplorer is using Docker Hub:
+
+```bash
+docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:latest
+```
+
+Then open your browser and go to: **http://localhost:3838**
+
+### Building from source (optional)
 
 ```bash
 # Build the image

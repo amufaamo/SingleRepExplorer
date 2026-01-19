@@ -1,10 +1,31 @@
-seurat_object.rds
+# Large data files
+*.rds
+*.RData
+*.csv
+
+# Git
 .git
-.Rproj
+.gitignore
+
+# R project files
+*.Rproj
 .Rhistory
-.RData
+
+# macOS
 .DS_Store
+
+# Docker files
 Dockerfile
+Dockerfile.arm64
+docker-compose.yml
+
+# Documentation (not needed in container)
 README.md
-# その他、コンテナに含めたくないファイルやディレクトリがあれば追加
-# 例: 大容量の生データファイルなど（これらはボリュームマウントで対応）
+docs/
+images/
+
+# Build logs
+build_log.txt
+
+# Example data (can be mounted as volume)
+example/
