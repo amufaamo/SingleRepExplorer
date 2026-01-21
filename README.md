@@ -2,6 +2,11 @@
 
 An interactive visualization tool for single-cell analysis.
 
+### Analysis Start (Demo Data)
+If you want to try the application without uploading files, click the blue **[Demo Data]** button.
+This will automatically load the provided example dataset and run the analysis.
+> Note: The [Demo Data] button is located below the [Run] button.
+
 ## 📖 Manual
 
 For detailed documentation, please visit:
