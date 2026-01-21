@@ -10,7 +10,7 @@
 
 
 
-<meta name="date" content="2026-01-19" />
+<meta name="date" content="2026-01-21" />
 
 <title>SingleRepExplorer Manual</title>
 
@@ -350,7 +350,7 @@ display: none;
 
 
 <h1 class="title toc-ignore">SingleRepExplorer Manual</h1>
-<h4 class="date">2026-01-19</h4>
+<h4 class="date">2026-01-21</h4>
 
 </div>
 
@@ -513,50 +513,41 @@ appear beside the button to confirm the upload.</p>
 </div>
 <div id="running-the-analysis" class="section level3">
 <h3>2. Running the Analysis</h3>
-<p>Once you have uploaded the necessary files (at minimum, the .h5
-file), click the blue <strong>[Run]</strong> button to start the
-analysis.</p>
-<p>When the [Run] button is clicked, the following automated workflow is
-initiated on the server:</p>
 <ol style="list-style-type: decimal">
-<li><strong>Analysis Start Notification</strong>:
+<li><strong>Analysis Start (Custom Data)</strong>:
 <ul>
-<li>The [Run] button is temporarily disabled to prevent multiple
-clicks.</li>
-<li>A status message appears: “🏃 Run button clicked. Starting
-analysis…”.</li>
+<li>Once you have uploaded the necessary files, click the blue
+<strong>[Run]</strong> button.</li>
+<li>This initiates the analysis pipeline on your uploaded data.</li>
 </ul></li>
-<li><strong>Progress Indicator</strong>:
+<li><strong>Analysis Start (Demo Data)</strong>:
 <ul>
-<li>A progress bar titled “Analysis in progress” appears (usually in the
-bottom-right corner) to show the current processing status.</li>
+<li>If you want to try the application without uploading files, click
+the blue <strong>[Demo Data]</strong> button.</li>
+<li>This will automatically load the provided example dataset and run
+the analysis.</li>
+<li><em>Note: The [Demo Data] button is located below the [Run]
+button.</em></li>
 </ul></li>
-<li><strong>Key Background Steps</strong>:
+<li><strong>Analysis Workflow (Background)</strong>:
 <ul>
-<li><code>Loading .h5 file...</code>: Reads the .h5 file and creates the
-core Seurat object.</li>
-<li><code>Running Seurat object...</code>: Executes the standard Seurat
-analysis pipeline, including normalization, scaling, PCA, and non-linear
-dimensionality reduction (UMAP/t-SNE).</li>
-<li><code>Adding cell types...</code>: Performs automated cell type
-annotation.</li>
-<li><code>Processing TCR data...</code>: (If uploaded) Reads and formats
-the TCR data, linking it to the cells in the Seurat object.</li>
-<li><code>Processing BCR data...</code>: (If uploaded) Reads and formats
-the BCR data, linking it to the cells in the Seurat object.</li>
+<li>When an analysis starts (via Run or Demo Data), the buttons are
+temporarily disabled.</li>
+<li>A status message appears: “🏃 Starting analysis…”.</li>
+<li>A progress bar titled “Analysis in progress” shows the current step:
+<ul>
+<li><code>Loading .h5 file...</code></li>
+<li><code>Running Seurat object...</code> (Normalization, Scaling, PCA,
+UMAP/t-SNE)</li>
+<li><code>Adding cell types...</code></li>
+<li><code>Processing TCR/BCR data...</code></li>
 </ul></li>
-<li><strong>Analysis Completion</strong>:
-<ul>
-<li>Upon successful completion, a “🎉 Analysis finished successfully!”
-message is displayed.</li>
-<li>The [Run] button is re-enabled, and the other analysis tabs (e.g.,
-[Dimensional Plot], [Transcriptome], [Repertoire]) become active,
-allowing you to explore the results.</li>
+<li>Upon completion, a “🎉 Analysis finished successfully!” message
+appears, and the buttons are re-enabled.</li>
 </ul></li>
 </ol>
-<p><strong>Error Handling</strong>: If you click [Run] without first
-uploading the mandatory .h5 file, an alert box will appear with the
-message: “Oops! Please upload the .h5 file first.”.</p>
+<p><strong>Error Handling</strong>: If you click [Run] without searching
+for or uploading the mandatory .h5 file, an alert box will appear.</p>
 <hr />
 <p>This section provides a detailed guide to the various analysis tabs
 available in SingleRepExplorer.</p>
@@ -660,106 +651,68 @@ table as a CSV file.</p>
 </div>
 </div>
 </div>
-<div id="expression-visualization" class="section level2">
-<h2>5. Expression Visualization</h2>
-<p>This tab allows you to visualize the expression levels of specific
-genes across your single-cell dataset using several common plot types.
-The plot updates interactively as you change the settings, without
-requiring a “Run” button.</p>
-<div id="sidebar-panel-controls-1" class="section level3">
-<h3>Sidebar Panel: Controls</h3>
-<div id="plot-gene-selection" class="section level4">
-<h4>1. Plot &amp; Gene Selection</h4>
+<div id="transcriptome-tab" class="section level2 tabset">
+<h2 class="tabset">[Transcriptome] Tab</h2>
+<p>This tab contains modules for exploring gene expression patterns and
+performing differential expression analysis.</p>
+<div id="expression-visualization" class="section level3">
+<h3>Expression Visualization</h3>
+<p>This module allows you to visualize the expression levels of specific
+genes across your single-cell dataset.</p>
+<div id="sidebar-panel-controls-1" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ol style="list-style-type: decimal">
+<li><strong>Plot &amp; Gene Selection</strong>:
 <ul>
-<li><strong>Plot type</strong>: Select the type of visualization.
-<ul>
-<li><strong>Feature plot</strong>: Overlays gene expression onto a
-dimensional reduction plot (e.g., UMAP).</li>
-<li><strong>Violin plot</strong>: Shows the distribution of gene
-expression for each group.</li>
-<li><strong>Dot plot</strong>: Displays the average expression and
-percentage of cells expressing a gene for each group.</li>
-<li><strong>Heatmap</strong>: Shows the expression of multiple genes
-across multiple cell groups.</li>
+<li><strong>Plot type</strong>: Select the type of visualization
+(Feature plot, Violin plot, Dot plot, Heatmap).</li>
+<li><strong>Enter or select gene names</strong>: Type or select gene
+names (e.g., <code>CD3E</code>).</li>
 </ul></li>
-<li><strong>Enter or select gene names</strong>: Type or select one or
-more gene names to visualize (e.g., <code>CD3E</code>,
-<code>CD19</code>). The list is populated from your dataset.</li>
-</ul>
-</div>
-<div id="plot-specific-options" class="section level4">
-<h4>2. Plot-Specific Options</h4>
-<p>The available options change based on the selected “Plot type”:</p>
+<li><strong>Plot-Specific Options</strong>:
 <ul>
-<li><strong>Group by</strong>: (Available for <code>Violin plot</code>,
-<code>Dot plot</code>, <code>Heatmap</code>) Select the metadata column
-to group cells by (e.g., <code>seurat_clusters</code>,
-<code>sample</code>).</li>
-<li><strong>Reduction</strong>: (Available for
-<code>Feature plot</code>) Select the dimensional reduction plot to use
-(e.g., <code>UMAP</code>, <code>TSNE</code>).</li>
-<li><strong>Point Size</strong>: (Available for
-<code>Feature plot</code>, <code>Violin plot</code>) Adjust the size of
-the individual dots.</li>
-<li><strong>Plot Width / Height</strong>: Adjust the dimensions of the
-plot in pixels.</li>
-<li><strong>Legend Position</strong>: Control where the plot legend is
-placed.</li>
-</ul>
+<li><strong>Group by</strong>: Select metadata to group cells by.</li>
+<li><strong>Reduction</strong>: (Feature plot) Select UMAP or TSNE.</li>
+<li><strong>Point Size</strong>, <strong>Plot Width/Height</strong>:
+Adjust visuals.</li>
+</ul></li>
+</ol>
 </div>
-</div>
-<div id="main-panel-outputs-1" class="section level3">
-<h3>Main Panel: Outputs</h3>
-<div id="plot-1" class="section level4">
-<h4>1. Plot</h4>
-<p>This area displays the gene expression plot based on your
-selections.</p>
+<div id="main-panel-outputs-1" class="section level4">
+<h4>Main Panel: Outputs</h4>
 <ul>
-<li><strong>Download plot (.pdf)</strong>: Click to download the current
-plot as a high-resolution, publication-ready PDF, saved using the
-dimensions specified in the sidebar.</li>
+<li><strong>Plot</strong>: Displays the gene expression plot.</li>
+<li><strong>Download plot (.pdf)</strong>: Download the current
+plot.</li>
 </ul>
 </div>
 </div>
-</div>
-<div id="differential-expression" class="section level2">
-<h2>5. Differential Expression</h2>
+<div id="differential-expression" class="section level3">
+<h3>Differential Expression</h3>
 <p>This module allows you to perform <strong>Differential Gene
-Expression (DGE)</strong> analysis to identify genes that are expressed
-at different levels between cell populations. It operates in two
-distinct modes.</p>
-<div id="sidebar-panel-controls-2" class="section level3">
-<h3>Sidebar Panel: Controls</h3>
-<div id="analysis-setup" class="section level4">
-<h4>1. Analysis Setup</h4>
+Expression (DGE)</strong> analysis.</p>
+<div id="sidebar-panel-controls-2" class="section level4">
+<h4>Sidebar Panel: Controls</h4>
+<ol style="list-style-type: decimal">
+<li><strong>Analysis Setup</strong>:
 <ul>
-<li><p><strong>Comparison Type</strong>: This is the most important
-setting.</p>
+<li><strong>Comparison Type</strong>:
 <ul>
-<li><strong>“To entire dataset” (Marker Identification)</strong>: This
-mode finds marker genes for <em>each</em> group. It compares one group
-(e.g., “Cluster 1”) against all other cells combined (“Cluster 1
-vs. All”). It repeats this for every group.</li>
-<li><strong>“Between selected group(s)” (Direct Comparison)</strong>:
-This mode compares two specific groups directly (e.g., “Cluster 1
-vs. Cluster 2”).</li>
+<li><strong>“To entire dataset”</strong>: Finds markers for each group
+vs. all others.</li>
+<li><strong>“Between selected group(s)”</strong>: Compares two specific
+groups directly.</li>
 </ul></li>
-<li><p><strong>Group by</strong>: Select the metadata column that
-defines your cell groups (e.g., <code>seurat_clusters</code>,
-<code>sample</code>, or your custom
-<code>Celltype_manual</code>).</p></li>
-<li><p><strong>Log fold change (Threshold)</strong>: Sets the minimum
-log-fold change (e.g., 0.1) for a gene to be considered differentially
-expressed.</p></li>
-<li><p><strong>Minimum percentage of cells… (min.pct)</strong>: Sets the
-minimum percentage of cells in either population that must express the
-gene (e.g., 0.01 = 1%).</p></li>
-<li><p><strong>Run</strong> (Button): Click this to start the DGE
-calculation after setting your parameters.</p></li>
-</ul>
-</div>
-<div id="mode-specific-options" class="section level4">
-<h4>2. Mode-Specific Options</h4>
+<li><strong>Group by</strong>: Select the metadata column defining
+groups.</li>
+<li><strong>Log fold change (Threshold)</strong>: Minimum log-fold
+change.</li>
+<li><strong>Minimum percentage (min.pct)</strong>: Minimum percentage of
+cells expressing the gene.</li>
+<li><strong>Run</strong>: Start the calculation.</li>
+</ul></li>
+<li><strong>Mode-Specific Options</strong>:</li>
+</ol>
 <p><strong>If “Comparison Type” is “To entire dataset”:</strong></p>
 <ul>
 <li><strong>Show Features</strong>:
@@ -790,56 +743,21 @@ p-value thresholds, point sizes, and plot dimensions.</li>
 </ul>
 <hr />
 </div>
-</div>
-<div id="main-panel-outputs-2" class="section level3">
-<h3>Main Panel: Outputs</h3>
-<p>The main panel’s display changes based on the “Comparison Type” you
-selected.</p>
-<div id="if-to-entire-dataset-marker-identification" class="section level4">
-<h4>If “To entire dataset” (Marker Identification)</h4>
+<div id="main-panel-outputs-2" class="section level4">
+<h4>Main Panel: Outputs</h4>
 <ul>
-<li><strong>Most Differentially Expressed Features (markers) for Each
-Group</strong>:
+<li><strong>If “To entire dataset”</strong>:
 <ul>
-<li>A summary table showing the top marker genes (based on your
-settings) for each cluster, formatted as a comma-separated list for easy
-viewing.</li>
-<li><code>Download marker table (.csv)</code>: Downloads this summary
+<li><strong>Markers Table</strong>: Summary of top markers for each
+cluster.</li>
+<li><strong>All Features Table</strong>: Complete DGE results
 table.</li>
 </ul></li>
-<li><strong>Differentially Expressed Features across Groups</strong>:
+<li><strong>If “Between selected group(s)”</strong>:
 <ul>
-<li>A complete, interactive data table containing <em>all</em>
-differential expression results for <em>all</em> clusters.</li>
-<li>You can use the search boxes at the top of columns to filter for
-specific genes (e.g., <code>gene</code> column) or clusters (e.g.,
-<code>cluster</code> column).</li>
-<li><code>Download all table (.csv)</code>: Downloads this full results
-table.</li>
-</ul></li>
-</ul>
-</div>
-<div id="if-between-selected-groups-direct-comparison" class="section level4">
-<h4>If “Between selected group(s)” (Direct Comparison)</h4>
-<ul>
-<li><strong>Volcano Plot</strong>:
-<ul>
-<li>An interactive plot visualizing the results. The X-axis is the
-<strong>log-fold change</strong> (positive values are up-regulated in
-your “Target” group), and the Y-axis is the <strong>-log10 adjusted
-p-value</strong> (higher means more significant).</li>
-<li>Hover over points to see gene names.</li>
-<li>Genes entered in the “Highlight Genes” box will be colored red and
-labeled.</li>
-<li><code>Download Plot (PDF)</code>: Downloads a static,
-publication-quality PDF of the volcano plot.</li>
-</ul></li>
-<li><strong>Differentially Expressed Features…</strong>:
-<ul>
-<li>A complete, interactive data table showing the full results for the
-<em>single comparison</em> you performed.</li>
-<li><code>Download all table (.csv)</code>: Downloads this data
-table.</li>
+<li><strong>Volcano Plot</strong>: Log-fold change vs. p-value.</li>
+<li><strong>Results Table</strong>: Complete DGE results for the
+comparison.</li>
 </ul></li>
 </ul>
 <hr />
@@ -928,7 +846,7 @@ the cells (e.g., <code>sample</code>,
 <code>seurat_clusters</code>).</li>
 </ul>
 </div>
-<div id="mode-specific-options-1" class="section level5">
+<div id="mode-specific-options" class="section level5">
 <h5>2. Mode-Specific Options</h5>
 <p>The options here change based on your “Analysis Target”
 selection.</p>
