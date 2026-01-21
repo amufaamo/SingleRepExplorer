@@ -108,10 +108,6 @@ You must upload the gene expression data, and you can optionally provide TCR and
 
 After selecting a file, a green "✅ Uploaded!" status message will appear beside the button to confirm the upload.
 
-```{r echo=FALSE, out.width="100%"}
-knitr::include_graphics("./images/upload_and_run.jpg")
-```
-
 
 ### 2. Running the Analysis
 
