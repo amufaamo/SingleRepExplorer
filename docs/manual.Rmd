@@ -1,7 +1,7 @@
 ---
 title: "SingleRepExplorer Manual"
 output: html_document
-date: "2026-01-19"
+date: "2026-01-21"
 ---
 
 ```{r setup, include=FALSE}
@@ -115,26 +115,26 @@ knitr::include_graphics("./images/upload_and_run.jpg")
 
 ### 2. Running the Analysis
 
-Once you have uploaded the necessary files (at minimum, the .h5 file), click the blue **[Run]** button to start the analysis.
+1.  **Analysis Start (Custom Data)**:
+    *   Once you have uploaded the necessary files, click the blue **[Run]** button.
+    *   This initiates the analysis pipeline on your uploaded data.
 
-When the [Run] button is clicked, the following automated workflow is initiated on the server:
+2.  **Analysis Start (Demo Data)**:
+    *   If you want to try the application without uploading files, click the blue **[Demo Data]** button.
+    *   This will automatically load the provided example dataset and run the analysis.
+    *   *Note: The [Demo Data] button is located below the [Run] button.*
 
-1.  **Analysis Start Notification**:
-    * The [Run] button is temporarily disabled to prevent multiple clicks.
-    * A status message appears: "🏃 Run button clicked. Starting analysis...".
-2.  **Progress Indicator**:
-    * A progress bar titled "Analysis in progress" appears (usually in the bottom-right corner) to show the current processing status.
-3.  **Key Background Steps**:
-    * `Loading .h5 file...`: Reads the .h5 file and creates the core Seurat object.
-    * `Running Seurat object...`: Executes the standard Seurat analysis pipeline, including normalization, scaling, PCA, and non-linear dimensionality reduction (UMAP/t-SNE).
-    * `Adding cell types...`: Performs automated cell type annotation.
-    * `Processing TCR data...`: (If uploaded) Reads and formats the TCR data, linking it to the cells in the Seurat object.
-    * `Processing BCR data...`: (If uploaded) Reads and formats the BCR data, linking it to the cells in the Seurat object.
-4.  **Analysis Completion**:
-    * Upon successful completion, a "🎉 Analysis finished successfully!" message is displayed.
-    * The [Run] button is re-enabled, and the other analysis tabs (e.g., [Dimensional Plot], [Transcriptome], [Repertoire]) become active, allowing you to explore the results.
+3.  **Analysis Workflow (Background)**:
+    *   When an analysis starts (via Run or Demo Data), the buttons are temporarily disabled.
+    *   A status message appears: "🏃 Starting analysis...".
+    *   A progress bar titled "Analysis in progress" shows the current step:
+        *   `Loading .h5 file...`
+        *   `Running Seurat object...` (Normalization, Scaling, PCA, UMAP/t-SNE)
+        *   `Adding cell types...`
+        *   `Processing TCR/BCR data...`
+    *   Upon completion, a "🎉 Analysis finished successfully!" message appears, and the buttons are re-enabled.
 
-**Error Handling**: If you click [Run] without first uploading the mandatory .h5 file, an alert box will appear with the message: "Oops! Please upload the .h5 file first.".
+**Error Handling**: If you click [Run] without searching for or uploading the mandatory .h5 file, an alert box will appear.
 
 ---
 
@@ -196,61 +196,47 @@ This is an interactive table showing the underlying data for the plot.
 * **Download Table (.csv)**: Click to download this full data table as a CSV file.
 
 
-## 5. Expression Visualization
+## [Transcriptome] Tab {.tabset}
 
-This tab allows you to visualize the expression levels of specific genes across your single-cell dataset using several common plot types. The plot updates interactively as you change the settings, without requiring a "Run" button.
+This tab contains modules for exploring gene expression patterns and performing differential expression analysis.
 
-### Sidebar Panel: Controls
+### Expression Visualization
 
-#### 1. Plot & Gene Selection
+This module allows you to visualize the expression levels of specific genes across your single-cell dataset.
 
-* **Plot type**: Select the type of visualization.
-    * **Feature plot**: Overlays gene expression onto a dimensional reduction plot (e.g., UMAP).
-    * **Violin plot**: Shows the distribution of gene expression for each group.
-    * **Dot plot**: Displays the average expression and percentage of cells expressing a gene for each group.
-    * **Heatmap**: Shows the expression of multiple genes across multiple cell groups.
-* **Enter or select gene names**: Type or select one or more gene names to visualize (e.g., `CD3E`, `CD19`). The list is populated from your dataset.
+#### Sidebar Panel: Controls
 
-#### 2. Plot-Specific Options
+1.  **Plot & Gene Selection**:
+    *   **Plot type**: Select the type of visualization (Feature plot, Violin plot, Dot plot, Heatmap).
+    *   **Enter or select gene names**: Type or select gene names (e.g., `CD3E`).
 
-The available options change based on the selected "Plot type":
+2.  **Plot-Specific Options**:
+    *   **Group by**: Select metadata to group cells by.
+    *   **Reduction**: (Feature plot) Select UMAP or TSNE.
+    *   **Point Size**, **Plot Width/Height**: Adjust visuals.
 
-* **Group by**: (Available for `Violin plot`, `Dot plot`, `Heatmap`) Select the metadata column to group cells by (e.g., `seurat_clusters`, `sample`).
-* **Reduction**: (Available for `Feature plot`) Select the dimensional reduction plot to use (e.g., `UMAP`, `TSNE`).
-* **Point Size**: (Available for `Feature plot`, `Violin plot`) Adjust the size of the individual dots.
-* **Plot Width / Height**: Adjust the dimensions of the plot in pixels.
-* **Legend Position**: Control where the plot legend is placed.
+#### Main Panel: Outputs
 
-### Main Panel: Outputs
-
-#### 1. Plot
-
-This area displays the gene expression plot based on your selections.
-
-* **Download plot (.pdf)**: Click to download the current plot as a high-resolution, publication-ready PDF, saved using the dimensions specified in the sidebar.
+*   **Plot**: Displays the gene expression plot.
+*   **Download plot (.pdf)**: Download the current plot.
 
 
-## 5. Differential Expression
+### Differential Expression
 
-This module allows you to perform **Differential Gene Expression (DGE)** analysis to identify genes that are expressed at different levels between cell populations. It operates in two distinct modes.
+This module allows you to perform **Differential Gene Expression (DGE)** analysis.
 
-### Sidebar Panel: Controls
+#### Sidebar Panel: Controls
 
-#### 1. Analysis Setup
+1.  **Analysis Setup**:
+    *   **Comparison Type**:
+        *   **"To entire dataset"**: Finds markers for each group vs. all others.
+        *   **"Between selected group(s)"**: Compares two specific groups directly.
+    *   **Group by**: Select the metadata column defining groups.
+    *   **Log fold change (Threshold)**: Minimum log-fold change.
+    *   **Minimum percentage (min.pct)**: Minimum percentage of cells expressing the gene.
+    *   **Run**: Start the calculation.
 
-* **Comparison Type**: This is the most important setting.
-    * **"To entire dataset" (Marker Identification)**: This mode finds marker genes for *each* group. It compares one group (e.g., "Cluster 1") against all other cells combined ("Cluster 1 vs. All"). It repeats this for every group.
-    * **"Between selected group(s)" (Direct Comparison)**: This mode compares two specific groups directly (e.g., "Cluster 1 vs. Cluster 2").
-
-* **Group by**: Select the metadata column that defines your cell groups (e.g., `seurat_clusters`, `sample`, or your custom `Celltype_manual`).
-
-* **Log fold change (Threshold)**: Sets the minimum log-fold change (e.g., 0.1) for a gene to be considered differentially expressed.
-
-* **Minimum percentage of cells... (min.pct)**: Sets the minimum percentage of cells in either population that must express the gene (e.g., 0.01 = 1%).
-
-* **Run** (Button): Click this to start the DGE calculation after setting your parameters.
-
-#### 2. Mode-Specific Options
+2.  **Mode-Specific Options**:
 
 **If "Comparison Type" is "To entire dataset":**
 
@@ -270,32 +256,15 @@ This module allows you to perform **Differential Gene Expression (DGE)** analysi
 
 ---
 
-### Main Panel: Outputs
+#### Main Panel: Outputs
 
-The main panel's display changes based on the "Comparison Type" you selected.
+*   **If "To entire dataset"**:
+    *   **Markers Table**: Summary of top markers for each cluster.
+    *   **All Features Table**: Complete DGE results table.
 
-#### If "To entire dataset" (Marker Identification)
-
-* **Most Differentially Expressed Features (markers) for Each Group**:
-    * A summary table showing the top marker genes (based on your settings) for each cluster, formatted as a comma-separated list for easy viewing.
-    * `Download marker table (.csv)`: Downloads this summary table.
-
-* **Differentially Expressed Features across Groups**:
-    * A complete, interactive data table containing *all* differential expression results for *all* clusters.
-    * You can use the search boxes at the top of columns to filter for specific genes (e.g., `gene` column) or clusters (e.g., `cluster` column).
-    * `Download all table (.csv)`: Downloads this full results table.
-
-#### If "Between selected group(s)" (Direct Comparison)
-
-* **Volcano Plot**:
-    * An interactive plot visualizing the results. The X-axis is the **log-fold change** (positive values are up-regulated in your "Target" group), and the Y-axis is the **-log10 adjusted p-value** (higher means more significant).
-    * Hover over points to see gene names.
-    * Genes entered in the "Highlight Genes" box will be colored red and labeled.
-    * `Download Plot (PDF)`: Downloads a static, publication-quality PDF of the volcano plot.
-
-* **Differentially Expressed Features...**:
-    * A complete, interactive data table showing the full results for the *single comparison* you performed.
-    * `Download all table (.csv)`: Downloads this data table.
+*   **If "Between selected group(s)"**:
+    *   **Volcano Plot**: Log-fold change vs. p-value.
+    *   **Results Table**: Complete DGE results for the comparison.
 
 ---
 

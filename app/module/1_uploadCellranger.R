@@ -36,6 +36,9 @@ uploadCellrangerUI <- function(id) {
                )
         )
       ),
+      fluidRow(
+        column(3, actionButton(ns("demo_run"), "Demo Data", icon = icon("database"), style = "margin-top: 5px; color: #fff; background-color: #337ab7; border-color: #2e6da4"))
+      ),
       
       shinyjs::hidden(
         tags$div(id = ns("status_message"),
@@ -56,70 +59,27 @@ uploadCellrangerServer <- function(id, myReactives) {
     output$tcr_status_ui <- renderUI({ req(input$tcr); tags$p("✅ Uploaded!", style = "color: green;") })
     output$bcr_status_ui <- renderUI({ req(input$bcr); tags$p("✅ Uploaded!", style = "color: green;") })
 
-    observeEvent(input$run, {
-      # --- 1. キャッシュファイルのパスを定義 ---
-      cache_file_path <- "analysis_cache.rds"
-
-      # --- 2. 入力とキャッシュの存在をチェック ---
-      # キャッシュがなく、かつ.h5ファイルもアップロードされていない場合はエラー
-      if (!file.exists(cache_file_path) && is.null(input$h5$datapath)) {
-        shinyalert::shinyalert("Input Required", "Please upload the .h5 file for the first analysis.", type = "error")
-        return()
-      }
-
-      # --- 3. UIの初期化 ---
-      shinyjs::hide("download_results")
-      shinyjs::disable("run")
-      shinyjs::show("status_message")
-
-      withProgress(message = 'Analysis in progress', value = 0, {
-        # --- 4. キャッシュの読み込み、または新規解析の実行 ---
-        # 変更点: h5ファイルがアップロードされていない場合にのみキャッシュを読み込む
-        if (file.exists(cache_file_path) && is.null(input$h5$datapath)) {
-          # --- [A] キャッシュが存在する場合：読み込んでスキップ ---
-          shinyjs::html(id = "status_message", html = paste0("<p style='color: #8A2BE2;'>📁 Found '", cache_file_path, "'. Loading cached analysis results...</p>"))
-          incProgress(0.2, detail = "Loading cached data...")
-
-          # キャッシュファイルを読み込む
-          cached_data <- readRDS(cache_file_path)
-
-          # myReactivesの各項目を復元
-          for (name in names(cached_data)) {
-            myReactives[[name]] <- cached_data[[name]]
-          }
-
-          incProgress(0.8, detail = "Cached data loaded successfully.")
-          message(paste("✅ Successfully loaded all analysis results from", cache_file_path))
-
-        } else {
-          # --- [B] キャッシュが存在しない場合：新規解析を実行 ---
-          shinyjs::html(id = "status_message", html = "<p style='color: blue;'>🚀 Starting new analysis pipeline... (This may take a while)</p>")
-
-          # (1) ファイルパスの割り当て
-          incProgress(0.1, detail = "Assigning file paths...")
-          myReactives <- fileUpload(input, myReactives)
-
+    # --- 共通解析ロジック関数 ---
+    run_core_analysis_pipeline <- function() {
           # (2) .h5からSeuratオブジェクト作成
           incProgress(0.1, detail = "Loading .h5 file...")
-          myReactives <- h5_to_seurat_object(myReactives)
+          # myReactives は親環境(moduleServer内)のものを参照・更新する
+          # ただし function(myReactives) で渡すとコピーになる可能性があるが、
+          # Rの参照クラス(reactiveValues)は参照渡し的に振る舞うためOK
+          # ここでは親スコープの myReactives を直接更新するために代入が必要か？
+          # utils.R の関数は return(myReactives) しているので、ここでも受け取る
+          
+          tmp_reactives <- h5_to_seurat_object(myReactives)
+          for(n in names(tmp_reactives)) myReactives[[n]] <- tmp_reactives[[n]]
 
           # (3) Seurat標準解析 (Normalization, PCA, UMAP, etc.)
           incProgress(0.2, detail = "Running basic Seurat processing...")
-          myReactives <- run_seurat_object(myReactives) # この関数は内部でSeuratオブジェクトを更新
+          tmp_reactives <- run_seurat_object(myReactives) 
+          for(n in names(tmp_reactives)) myReactives[[n]] <- tmp_reactives[[n]]
 
           # (4) scTypeによる細胞タイピング
-          # User requested to skip sctype to save memory
           incProgress(0.1, detail = "Skipping cell typing (scType)...")
           message("--- Skipping scType analysis as requested ---")
-          # tryCatch({
-          #   message("--- Starting scType analysis ---")
-          #   myReactives$seurat_object <- run_sctype_and_update_seurat(myReactives$seurat_object)
-          #   message("--- scType analysis finished successfully ---")
-          # }, error = function(e) {
-          #   message("!!!!!!!!!! scType Error Caught !!!!!!!!!!")
-          #   message("Error message: ", e$message)
-          #   shinyalert::shinyalert("scType Error", paste("Cell typing failed:", e$message), type = "error")
-          # })
 
           # (5) TCRデータ処理
           if (!is.null(myReactives$tcr_path)) {
@@ -171,15 +131,95 @@ uploadCellrangerServer <- function(id, myReactives) {
           
           # (7) 解析結果をキャッシュとして保存
           incProgress(0.1, detail = "Finalizing and saving results to cache...")
+          # demo_runの場合はキャッシュを上書きしない方が良いかもしれないが、
+          # 仕様上「解析結果」は一つなので上書きされる。
           results_to_save <- reactiveValuesToList(myReactives)
-          saveRDS(results_to_save, file = cache_file_path)
-          message(paste("--- ✅ Analysis complete. Results saved to", cache_file_path, "---"))
+          saveRDS(results_to_save, file = "analysis_cache.rds") # パスは共通
+          message(paste("--- ✅ Analysis complete. Results saved to analysis_cache.rds ---"))
+    }
+
+    # --- Demo Data Run Event ---
+    observeEvent(input$demo_run, {
+      shinyjs::hide("download_results")
+      shinyjs::disable("run")
+      shinyjs::disable("demo_run")
+      shinyjs::show("status_message")
+      
+      shinyjs::html(id = "status_message", html = "<p style='color: blue;'>🚀 Starting analysis with Demo Data...</p>")
+      
+      withProgress(message = 'Processing Demo Data', value = 0, {
+          # パスをExampleファイルに設定
+          incProgress(0.1, detail = "Preparing demo files...")
+          myReactives$h5_path  <- "example/230405_ruft_hcw_vaccine_merge_3000.h5"
+          myReactives$tcr_path <- "example/230405_ruft_hcw_vaccine_merge_3000_t.csv"
+          myReactives$bcr_path <- "example/230405_ruft_hcw_vaccine_merge_3000_b.csv"
+          
+          # 解析実行
+          run_core_analysis_pipeline()
+      })
+      
+      # 完了処理
+      shinyjs::html(id = "status_message", html = "<p style='color: green;'>🎉 Demo Analysis finished successfully!</p>")
+      shinyjs::enable("run")
+      shinyjs::enable("demo_run")
+      shinyjs::show("download_results")
+      shinyjs::delay(5000, shinyjs::hide("status_message"))
+    })
+
+    observeEvent(input$run, {
+      # --- 1. キャッシュファイルのパスを定義 ---
+      cache_file_path <- "analysis_cache.rds"
+
+      # --- 2. 入力とキャッシュの存在をチェック ---
+      # キャッシュがなく、かつ.h5ファイルもアップロードされていない場合はエラー
+      if (!file.exists(cache_file_path) && is.null(input$h5$datapath)) {
+        shinyalert::shinyalert("Input Required", "Please upload the .h5 file for the first analysis.", type = "error")
+        return()
+      }
+
+      # --- 3. UIの初期化 ---
+      shinyjs::hide("download_results")
+      shinyjs::disable("run")
+      shinyjs::disable("demo_run")
+      shinyjs::show("status_message")
+
+      withProgress(message = 'Analysis in progress', value = 0, {
+        # --- 4. キャッシュの読み込み、または新規解析の実行 ---
+        # 変更点: h5ファイルがアップロードされていない場合にのみキャッシュを読み込む
+        if (file.exists(cache_file_path) && is.null(input$h5$datapath)) {
+          # --- [A] キャッシュが存在する場合：読み込んでスキップ ---
+          shinyjs::html(id = "status_message", html = paste0("<p style='color: #8A2BE2;'>📁 Found '", cache_file_path, "'. Loading cached analysis results...</p>"))
+          incProgress(0.2, detail = "Loading cached data...")
+
+          # キャッシュファイルを読み込む
+          cached_data <- readRDS(cache_file_path)
+
+          # myReactivesの各項目を復元
+          for (name in names(cached_data)) {
+            myReactives[[name]] <- cached_data[[name]]
+          }
+
+          incProgress(0.8, detail = "Cached data loaded successfully.")
+          message(paste("✅ Successfully loaded all analysis results from", cache_file_path))
+
+        } else {
+          # --- [B] キャッシュが存在しない場合：新規解析を実行 ---
+          shinyjs::html(id = "status_message", html = "<p style='color: blue;'>🚀 Starting new analysis pipeline... (This may take a while)</p>")
+
+          # (1) ファイルパスの割り当て
+          incProgress(0.1, detail = "Assigning file paths...")
+          myReactives <- fileUpload(input, myReactives)
+
+          # 共通解析ロジック呼び出し
+          run_core_analysis_pipeline()
+          
         }
       }) # withProgressの終わり
 
       # --- 5. 完了処理 ---
       shinyjs::html(id = "status_message", html = "<p style='color: green;'>🎉 Analysis finished successfully!</p>")
       shinyjs::enable("run")
+      shinyjs::enable("demo_run")
       shinyjs::show("download_results")
       shinyjs::delay(5000, shinyjs::hide("status_message"))
     })

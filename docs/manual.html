@@ -10,7 +10,7 @@
 
 
 
-<meta name="date" content="2026-01-16" />
+<meta name="date" content="2026-01-19" />
 
 <title>SingleRepExplorer Manual</title>
 
@@ -350,7 +350,7 @@ display: none;
 
 
 <h1 class="title toc-ignore">SingleRepExplorer Manual</h1>
-<h4 class="date">2026-01-16</h4>
+<h4 class="date">2026-01-19</h4>
 
 </div>
 
@@ -448,10 +448,10 @@ Menu).</li>
 </ul>
 <p>Copy and paste the following command into your terminal, then press
 <strong>Enter</strong>:</p>
-<pre class="bash"><code>docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:v1.1.13</code></pre>
+<pre class="bash"><code>docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:latest</code></pre>
 <p>This command will automatically:</p>
 <ol style="list-style-type: decimal">
-<li>Download (pull) the <code>amufaamo/singlerepexplorer:v1.1.13</code>
+<li>Download (pull) the <code>amufaamo/singlerepexplorer:latest</code>
 image from Docker Hub, if you don’t have it.</li>
 <li>Start the application.</li>
 </ol>
@@ -1339,104 +1339,6 @@ calculated overlap values (rounded to 3 decimal places).</li>
 </ul>
 </div>
 </div>
-<div id="clonal-proportion" class="section level3">
-<h3>Clonal Proportion</h3>
-<p>This module helps you understand the <strong>clonal expansion
-structure</strong> within each group (e.g., sample or cluster). It
-categorizes clonotypes based on their size (i.e., how many cells share
-the same clonotype) and displays the proportion of cells belonging to
-each size category as a stacked bar chart. This allows you to easily
-compare whether some groups are dominated by large, expanded clones
-while others consist mostly of unique or rare clones.</p>
-<div id="sidebar-panel-controls-10" class="section level4">
-<h4>Sidebar Panel: Controls</h4>
-<ul>
-<li><strong>VDJ Type</strong>: Select whether to analyze
-<strong>TCR</strong> or <strong>BCR</strong> data.</li>
-<li><strong>Group by</strong>: Choose the metadata column used to group
-the cells (e.g., <code>sample</code>, <code>seurat_clusters</code>). The
-analysis will calculate proportions <em>within</em> each of these
-groups.</li>
-<li><strong>Clone Definition</strong>: Select which column defines a
-unique clonotype.
-<ul>
-<li><code>Clonotype ID</code> (<code>raw_clonotype_id</code>): Uses the
-pre-defined clonotype ID (often based on shared V/J genes and CDR3
-sequence similarity).</li>
-<li><code>CDR3 nucleotide</code> (<code>nt</code>): Defines clonotypes
-based on the exact CDR3 nucleotide sequence (will likely result in more
-“unique” clones).</li>
-<li><code>CDR3 amino acid</code> (<code>aa</code>): Defines clonotypes
-based on the exact CDR3 amino acid sequence.</li>
-</ul></li>
-<li><strong>Chain</strong> (Appears after selecting VDJ type, primarily
-for TCR): Choose whether the analysis should consider both chains, or
-only TRA or TRB when defining clonotypes based on CDR3 sequences.
-<em>(Note: Current implementation calculates counts based on the ‘Clone
-Definition’ column irrespective of this selection, but it might be used
-for filtering in future versions)</em>.</li>
-<li><strong>Clonal Size Categories (Upper Limits)</strong>: These
-numeric inputs define the boundaries for categorizing clonotype sizes
-based on their count (<code>Ct</code>).
-<ol style="list-style-type: decimal">
-<li><strong>Unique Max Count</strong>: Clonotypes with a count less than
-or equal to this value (e.g., <code>1</code>) are categorized as
-“Unique”.</li>
-<li><strong>Rare Max Count</strong>: Clonotypes with a count greater
-than the ‘Unique’ limit but less than or equal to this value (e.g.,
-<code>5</code>) are categorized as “Rare”.</li>
-<li><strong>Small Max Count</strong>: (e.g., count &gt; 5 and &lt;=
-<code>20</code>).</li>
-<li><strong>Medium Max Count</strong>: (e.g., count &gt; 20 and &lt;=
-<code>100</code>).</li>
-<li><strong>Large Max Count</strong>: (e.g., count &gt; 100 and &lt;=
-<code>1000</code>).</li>
-<li><strong>Hyperexpanded Max Count</strong>: (e.g., count &gt; 1000 and
-&lt;= <code>10000</code>).</li>
-</ol>
-<ul>
-<li>Any clonotype with a count greater than the ‘Hyperexpanded’ limit
-falls into the final “Ct &gt; [Hyperexpanded Max]” category.</li>
-</ul></li>
-<li><strong>Legend/Plot Options</strong>: Adjust the legend position,
-plot width, and plot height.</li>
-<li><strong>Download Buttons</strong>: Buttons to download the plot and
-the data table.</li>
-</ul>
-</div>
-<div id="main-panel-outputs-10" class="section level4">
-<h4>Main Panel: Outputs</h4>
-<ul>
-<li><strong>Clonal Proportion by Size Category Plot</strong>: Displays a
-<strong>stacked bar chart</strong>.
-<ul>
-<li><strong>X-axis</strong>: Shows the different groups selected via
-“Group by”.</li>
-<li><strong>Y-axis</strong>: Represents 100% for each group.</li>
-<li><strong>Fill Colors</strong>: Each colored segment within a bar
-represents one of the clonal size categories defined in the sidebar
-(Unique, Rare, Small, etc.). The height of the segment shows the
-percentage of cells within that group that belong to clonotypes of that
-size category.</li>
-<li><code>Download plot (.pdf)</code>: Downloads the stacked bar chart
-as a publication-ready PDF.</li>
-</ul></li>
-<li><strong>Proportion Data Table</strong>: An interactive data table
-showing the summary data used for the plot. It includes:
-<ul>
-<li>The grouping column (e.g., <code>sample</code>).</li>
-<li><code>category</code>: The clonal size category label.</li>
-<li><code>n</code>: The number of <em>clonotypes</em> belonging to that
-category in that group.</li>
-<li><code>percentage</code>: The percentage of <em>cells</em> in that
-group belonging to clonotypes of that category (this is what’s
-plotted).</li>
-<li><code>Download table (.csv)</code>: Downloads this summary table as
-a CSV file.</li>
-</ul></li>
-</ul>
-</div>
-</div>
 <div id="public-clonotype" class="section level3">
 <h3>Public Clonotype</h3>
 <p>This module helps identify <strong>“public clonotypes”</strong> –
@@ -1444,7 +1346,7 @@ clonotypes that are shared across two or more different groups (e.g.,
 samples, clusters). It visualizes the overlap using a Venn diagram and
 allows you to inspect the details of the clonotypes found in specific
 intersections.</p>
-<div id="sidebar-panel-controls-11" class="section level4">
+<div id="sidebar-panel-controls-10" class="section level4">
 <h4>Sidebar Panel: Controls</h4>
 <ul>
 <li><strong>VDJ Type</strong>: Select whether to analyze
@@ -1468,11 +1370,10 @@ group.</li>
 </ul></li>
 <li><strong>Common Plot Options</strong>: Adjust the
 <code>Plot Width</code> and <code>Plot Height</code> for the Venn
-diagram area. <em>(Note: Legend Position is less relevant for the Venn
-diagram itself)</em>.</li>
+diagram area.</li>
 </ul>
 </div>
-<div id="main-panel-outputs-11" class="section level4">
+<div id="main-panel-outputs-10" class="section level4">
 <h4>Main Panel: Outputs</h4>
 <ul>
 <li><strong>Public Clonotypes Venn Diagram</strong>: Displays a
@@ -1499,106 +1400,9 @@ the selected intersection</strong>.
 clonotype.</li>
 <li>Subsequent columns show the <strong>abundance</strong> (count and/or
 proportion, based on your sidebar selection) of that specific clonotype
-within each of the originally selected groups. This allows you to see
-not just <em>that</em> a clone is shared, but also how prevalent it is
-in each group where it appears.</li>
+within each of the originally selected groups.</li>
 </ul></li>
 </ul></li>
-</ul>
-</div>
-</div>
-<div id="antigen-prediction" class="section level3">
-<h3>Antigen Prediction</h3>
-<p>This module attempts to predict the antigen specificity of your
-clonotypes by matching their CDR3 sequences against a pre-compiled
-database of known antigen-specific receptors.</p>
-<div id="sidebar-panel-controls-12" class="section level4">
-<h4>Sidebar Panel: Controls</h4>
-<ul>
-<li><strong>VDJ Type</strong>: Select whether to analyze
-<strong>TCR</strong> or <strong>BCR</strong> data. This selection
-determines:
-<ol style="list-style-type: decimal">
-<li>Which antigen database to load (TCR or BCR).</li>
-<li>Which CDR3 column from your data to use for matching (TCR:
-<code>TCR_TRB_cdr3</code>; BCR: <code>BCR_IGH_cdr3</code>).</li>
-</ol></li>
-<li><strong>Download table (.csv)</strong>: Click this button to
-download the complete <strong>source antigen database file</strong> (TCR
-or BCR) that is being used for the comparison.</li>
-</ul>
-</div>
-<div id="main-panel-outputs-12" class="section level4">
-<h4>Main Panel: Outputs</h4>
-<ul>
-<li><p><strong>Antigen Prediction Table - Matched CDR3s</strong>: This
-interactive data table displays the results of the prediction.
-<strong>This table only shows clonotypes from your dataset that had an
-exact match in the database.</strong></p>
-<p>The module performs an “inner join,” meaning if a clonotype’s
-<code>TCR_TRB_cdr3</code> (for TCR) or <code>BCR_IGH_cdr3</code> (for
-BCR) sequence is not found in the database, it will <em>not</em> appear
-in this list.</p>
-<p>The resulting table shows:</p>
-<ul>
-<li><code>raw_clonotype_id</code>: Your clonotype’s ID.</li>
-<li><code>exact_subclonotype_id</code>: Your clonotype’s subclonotype
-ID.</li>
-<li>The matched CDR3 sequence (e.g., <code>TCR_TRB_cdr3</code>).</li>
-<li><code>Epitope_sequence</code>: The epitope sequence from the
-database.</li>
-<li><code>Epitope_gene</code>: The gene associated with the
-epitope.</li>
-<li><code>Epitope_species</code>: The species associated with the
-epitope.</li>
-</ul></li>
-</ul>
-</div>
-</div>
-<div id="phylogenetic-tree-data-viewer" class="section level3">
-<h3>Phylogenetic Tree (Data Viewer)</h3>
-<p>This module is designed to facilitate the exploration of clonal
-evolution, specifically for B-cell receptors (BCRs). <strong>Currently,
-this module allows you to select a specific BCR clone (one that contains
-multiple related subclones) and view the raw data for all cells
-belonging to that clone.</strong> The functionality for building and
-displaying the actual phylogenetic tree is under development.</p>
-<p>This module is primarily intended for <strong>BCR analysis
-only</strong> at this time.</p>
-<div id="sidebar-panel-controls-13" class="section level4">
-<h4>Sidebar Panel: Controls</h4>
-<ul>
-<li><strong>Select Clone</strong>: This dropdown menu lists all BCR
-<code>raw_clonotype_id</code> values from your dataset that contain
-<strong>more than one</strong> unique
-<code>exact_subclonotype_id</code>. This pre-filtering helps you focus
-on clones that have likely undergone some level of diversification
-(potentially somatic hypermutation).</li>
-<li><strong>Display Clone Data</strong>: Click this button after
-selecting a clone. It triggers the server to filter the BCR data and
-display the relevant information in the main panel.</li>
-</ul>
-</div>
-<div id="main-panel-outputs-13" class="section level4">
-<h4>Main Panel: Outputs</h4>
-<ul>
-<li><strong>Plot Area</strong>: <em>(Currently inactive)</em> This area
-is reserved for displaying the phylogenetic tree visualization once the
-feature is implemented.</li>
-<li><strong>Selected Clone Data Table</strong>: This table displays the
-raw data rows from your BCR dataset that correspond to the clone you
-selected in the sidebar. This includes columns like:
-<ul>
-<li><code>barcode</code></li>
-<li><code>raw_clonotype_id</code></li>
-<li><code>exact_subclonotype_id</code></li>
-<li><code>BCR_IGH_full_length_nt</code> (the sequence potentially used
-for tree building)</li>
-<li><code>sample</code>, <code>seurat_clusters</code>,
-<code>BCR_IGH_c_gene</code>, etc. (any other available metadata).</li>
-</ul>
-This allows you to inspect the individual sequences and associated
-metadata for the cells within the selected evolving clone.</li>
 </ul>
 </div>
 </div>

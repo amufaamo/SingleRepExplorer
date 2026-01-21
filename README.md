@@ -10,14 +10,20 @@ For detailed documentation, please visit:
 
 ## 🚀 Overview
 
-SingleRepExplorer is a web-based interactive single-cell analysis tool built with Shiny.
-Using Seurat objects, it provides the following analyses and visualizations:
+SingleRepExplorer is a web-based interactive tool for **integrated single-cell RNA-seq and immune repertoire analysis**. It combines transcriptomic analysis with TCR/BCR repertoire profiling in a single platform. You can try the application immediately using the built-in **Demo Data** without needing to upload your own files.
 
-- UMAP plots
-- Violin plots
-- Feature plots
-- Dot plots
-- Cluster analysis
+### Transcriptome Analysis
+- UMAP/t-SNE visualization
+- Gene expression plots (Violin, Feature, Dot, Heatmap)
+- Differential expression analysis
+- Automated cell type annotation
+
+### Repertoire Analysis (TCR/BCR)
+- Clonotype frequency and abundance
+- Diversity analysis
+- Clonal overlap between samples
+- Public clonotype identification
+- Clonotype tracking across conditions
 
 ## 🐳 Docker Usage
 
