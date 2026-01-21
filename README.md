@@ -2,10 +2,15 @@
 
 An interactive visualization tool for single-cell analysis.
 
-### Analysis Start (Demo Data)
-If you want to try the application without uploading files, click the blue **[Demo Data]** button.
-This will automatically load the provided example dataset and run the analysis.
-> Note: The [Demo Data] button is located below the [Run] button.
+## ⚡ TL;DR (Quick Start)
+
+Run this command in your terminal:
+```bash
+docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:latest
+```
+Then open http://localhost:3838 and click **[Demo Data]** to try it out!
+
+
 
 ## 📖 Manual
 
@@ -49,6 +54,11 @@ docker build -t singlerepexplorer .
 # Run the container
 docker run -p 3838:3838 singlerepexplorer
 ```
+
+### Analysis Start (Demo Data)
+If you want to try the application without uploading files, click the blue **[Demo Data]** button.
+This will automatically load the provided example dataset and run the analysis.
+> Note: The [Demo Data] button is located below the [Run] button.
 
 ## 📂 Project Structure
 
