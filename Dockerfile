@@ -2,7 +2,9 @@
 FROM --platform=linux/amd64 rocker/shiny-verse:latest
 
 # STEP 2: システムライブラリのインストール
-RUN apt-get update && apt-get install -y \
+USER root
+RUN apt-get update -o APT::Sandbox::User=root && \
+    apt-get install -y --no-install-recommends \
     libxml2-dev \
     libssl-dev \
     libcurl4-openssl-dev \
