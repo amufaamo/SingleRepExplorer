@@ -20,7 +20,7 @@ update_group_by <- function(session, myReactives) {
   req(metadatas) # metadatasがNULLなら停止
 
   metadata_cols <- names(metadatas)
-  validate(need(length(metadata_cols) > 0, "No suitable metadata columns found."))
+  shiny::validate(shiny::need(length(metadata_cols) > 0, "No suitable metadata columns found."))
 
   # リスト形式で選択肢を作成 (名前と値が同じ)
   group_cols <- setNames(as.list(metadata_cols), metadata_cols)
@@ -53,9 +53,10 @@ update_group_by_select_input <- function(session, myReactives, selected = NULL) 
   choices <- setdiff(potential_choices, minus_column)
   
   # さらに、特定の接頭辞を持つ列を除外します。
-  choices <- choices[!grepl("^(RNA_snn_res\\.|TCR|BCR)", choices)]
+  # Remove complex sequences, but allow Repertoire Status, ID, and Clone Size
+  choices <- choices[!grepl("^(RNA_snn_res\\.|TCR_CT|BCR_CT)", choices)]
 
-  validate(need(length(choices) > 0, "No suitable metadata columns found for grouping."))
+  shiny::validate(shiny::need(length(choices) > 0, "No suitable metadata columns found for grouping."))
 
   # --- 3. 選択項目の決定ロジック ---
   # 'selected'引数が指定され、かつそれが選択肢リストに存在する場合、それを最優先で選択します。
@@ -112,7 +113,7 @@ update_group_by_for_dimplot <- function(session, myReactives) {
   }
   metadata_cols <- unique(c(metadata_cols, tcr_cols_to_add, bcr_cols_to_add)) # 重複を除いて結合
 
-  validate(need(length(metadata_cols) > 0, "No suitable metadata columns found after processing."))
+  shiny::validate(shiny::need(length(metadata_cols) > 0, "No suitable metadata columns found after processing."))
 
   # グループ列をリスト形式で作成 (名前=値)
   group_cols <- setNames(as.list(metadata_cols), metadata_cols)
@@ -130,8 +131,8 @@ update_group_by_for_dimplot <- function(session, myReactives) {
 update_unique_group_choices <- function(session, myReactives, group_by_col) {
   req(myReactives$seurat_object, group_by_col, nzchar(group_by_col)) # group_by_col が空でないことも確認
   # group_by_col が実際にメタデータに存在するか確認
-  validate(need(group_by_col %in% names(myReactives$seurat_object@meta.data),
-                paste("Column '", group_by_col, "' not found in Seurat metadata.")))
+  shiny::validate(shiny::need(group_by_col %in% names(myReactives$seurat_object@meta.data),
+                paste("Column '", group_by_col %||% "", "' not found in Seurat metadata.")))
 
   unique_groups <- tryCatch({
       unique(myReactives$seurat_object@meta.data[[group_by_col]])
@@ -142,7 +143,7 @@ update_unique_group_choices <- function(session, myReactives, group_by_col) {
 
   # NAを除外
   unique_groups <- na.omit(unique_groups)
-  validate(need(length(unique_groups) > 0, paste("No valid unique groups found in column '", group_by_col, "'.")))
+  shiny::validate(shiny::need(length(unique_groups) > 0, paste("No valid unique groups found in column '", group_by_col %||% "", "'.")))
 
   # 数値/文字列ソート (変更なし)
   if (is.factor(unique_groups)) { unique_groups <- levels(unique_groups) }
@@ -172,13 +173,12 @@ update_group_by_for_marker <- function(session, input, myReactives) {
   metadatas <- tryCatch({
       myReactives$seurat_object@meta.data %>%
         dplyr::select(-any_of(minus_column), -starts_with("RNA_snn_res.")) %>% # any_ofで堅牢性を向上
-        dplyr::select(!starts_with("TCR")) %>%
-        dplyr::select(!starts_with("BCR"))
+        dplyr::select(-starts_with("TCR_CT"), -starts_with("BCR_CT")) # Exclude bulky nucleotide/amino acid sequences, but KEEP status, clonotype_id, and cloneSize
     }, error = function(e){ warning("Error selecting metadata in update_group_by_for_marker: ", e$message); NULL })
   req(metadatas)
 
   metadata_cols <- names(metadatas)
-  validate(need(length(metadata_cols) > 0, "No suitable metadata columns found."))
+  shiny::validate(shiny::need(length(metadata_cols) > 0, "No suitable metadata columns found."))
 
   # 通常、クラスタリング結果 (seurat_clustersなど) やサンプルで比較する
   # ここでは全てのカテゴリカル/ファクター列を候補とする
@@ -194,7 +194,7 @@ update_group_by_for_marker <- function(session, input, myReactives) {
   # この関数が呼ばれる時点で input$group_by が更新されている前提
   # req(input$group_by) # input$group_by をここで req すると循環参照になる可能性
   # 代わりに、更新された selected_group を直接使う
-  current_group_by <- session$input$group_by %||% selected_group # session$input を使うか、引数で渡す
+  current_group_by <- input$group_by %||% selected_group # session$input を使うか、引数で渡す
 
   if (!is.null(current_group_by) && current_group_by %in% colnames(myReactives$seurat_object@meta.data)) {
       cluster_choices <- tryCatch(unique(myReactives$seurat_object@meta.data[[current_group_by]]), error = function(e) NULL)
@@ -274,12 +274,29 @@ valueType <- function(ns){ # clonalProportion などで使う想定
 
 h5_to_seurat_object <- function(myReactives) {
   req(myReactives$h5_path) # パスが必要
+  
+  # if loaded in QC preview step, use that to save time
+  if (!is.null(myReactives$raw_qc_seurat)) {
+    message("Using pre-loaded raw Seurat object from QC preview.")
+    myReactives$seurat_object <- myReactives$raw_qc_seurat
+    
+    # 🌟 CRITICAL MEMORY LEAK FIX 🌟
+    # Destroy the raw QC reference so R can garbage-collect the dropped cells during filtering.
+    # Otherwise, R holds the entire raw matrix in memory alongside the filtered matrix, doubling RAM usage!
+    myReactives$raw_qc_seurat <- NULL
+    gc()
+    
+    return(myReactives)
+  }
+  
   h5 <- Seurat::Read10X_h5(myReactives$h5_path) # Seurat:: を明示
   # Gene Expression matrix がリストに含まれているかチェック
   if (is.list(h5) && !is.data.frame(h5) && ("Gene Expression" %in% names(h5))) {
     h5 <- h5[["Gene Expression"]]
   }
-  myReactives$seurat_object <- Seurat::CreateSeuratObject(h5)
+  raw_so <- Seurat::CreateSeuratObject(h5)
+  raw_so[["percent.mt"]] <- Seurat::PercentageFeatureSet(raw_so, pattern = "^MT-")
+  myReactives$seurat_object <- raw_so
   return(myReactives)
 }
 

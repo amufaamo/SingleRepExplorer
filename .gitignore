@@ -5,8 +5,8 @@
 #seurat_object.rds
 
 # もし特定の拡張子のファイルを全て無視したい場合
-SiCR/*.RData
-SiCR/*.rds
+app/*.RData
+app/*.rds
 
 # History files
 .Rhistory
@@ -50,3 +50,8 @@ vignettes/*.pdf
 *.rds
 *.RData
 *.csv
+
+# Ensure example data is not ignored
+!app/example/
+!app/example/*.csv
+!app/example/*.h5

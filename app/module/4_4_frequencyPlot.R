@@ -115,7 +115,8 @@ frequencyPlotServer <- function(id, myReactives) {
           }
           # 必要な列が存在するか確認
           req(df, "raw_clonotype_id" %in% names(df), nrow(df) > 0)
-          validate(need(input$group_by %in% names(df), paste("Column", shQuote(input$group_by), "not found in the data.")))
+          grouping_var_safe <- input$group_by %||% ""
+          shiny::validate(shiny::need(is.character(grouping_var_safe) && grouping_var_safe %in% names(df), paste("Column", shQuote(grouping_var_safe), "not found in the data.")))
 
           # group_by 列の NA と空文字列を除外
           df_filtered_na_empty <- df %>%
@@ -156,8 +157,9 @@ frequencyPlotServer <- function(id, myReactives) {
           
           available_groups <- sort(unique(df[[grouping_var]]))
 
+          grouping_var_safe <- if(is.null(grouping_var)) "UNKNOWN" else grouping_var
           validate(
-            need(length(available_groups) > 0, paste("No available groups found in column:", shQuote(grouping_var), "after removing NA/empty values."))
+            need(length(available_groups) > 0, paste("No available groups found in column:", shQuote(grouping_var_safe), "after removing NA/empty values."))
           )
 
           checkboxGroupInput(session$ns("filter_groups"),
@@ -312,7 +314,7 @@ frequencyPlotServer <- function(id, myReactives) {
               return(NULL)
           }
 
-          validate(need(!is.null(plot_data) && nrow(plot_data) > 0, "No data for plot/table."))
+          validate(need(is.data.frame(plot_data) && nrow(plot_data) > 0, "No data for plot/table."))
           return(plot_data)
         })
 
@@ -677,8 +679,9 @@ frequencyPlotServer <- function(id, myReactives) {
       req(df, input$group_by)
       grouping_var <- input$group_by
       available_groups <- sort(unique(df[[grouping_var]]))
-      validate(need(length(available_groups) > 0, "No available groups."))
-      checkboxGroupInput(session$ns("filter_groups"), paste("Filter", tools::toTitleCase(gsub("_", " ", grouping_var)), ":"),
+      grouping_var_safe <- if(is.null(grouping_var)) "UNKNOWN" else grouping_var
+      validate(need(length(available_groups) > 0, paste("No available groups found in column:", grouping_var_safe)))
+      checkboxGroupInput(session$ns("filter_groups"), paste("Filter", tools::toTitleCase(gsub("_", " ", grouping_var_safe)), ":"),
         choices = available_groups, selected = available_groups, inline = TRUE
       )
     })
@@ -771,7 +774,7 @@ frequencyPlotServer <- function(id, myReactives) {
         }
 
 
-        validate(need(!is.null(plot_data) && nrow(plot_data) > 0, "No data for plot/table."))
+        validate(need(is.data.frame(plot_data) && nrow(plot_data) > 0, "No data for plot/table."))
         return(plot_data)
     })
 

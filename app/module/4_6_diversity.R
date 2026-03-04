@@ -9,9 +9,13 @@ diversityAnalysisUI <- function(id) {
       # ★★★ 新しいUI要素: 多様性指数の選択 ★★★
       selectInput(ns("diversity_index"), "多様性指数 (Diversity Index)",
                   choices = c("Shannon" = "shannon",
-                              "Simpson" = "simpson",
+                              "Gini-Simpson" = "simpson",
                               "Inverse Simpson" = "invsimpson",
-                              "Chao1 (推定種数)" = "chao1"),
+                              "Chao1 (Richness Estimation)" = "chao1",
+                              "ACE (Richness Estimation)" = "ace",
+                              "Pielou's Evenness" = "pielou",
+                              "D50 (Clonal Dominance)" = "d50",
+                              "Gini Index (Inequality)" = "gini"),
                   selected = "shannon"),
       
       selectInput(ns("target_gene_column"), "クローンID列 (Target Column)",
@@ -61,8 +65,8 @@ diversityAnalysisServer <- function(id, myReactives) {
         req(myReactives$bcr_df)
         df <- myReactives$bcr_df
       }
-      validate(need(!is.null(df) && nrow(df) > 0, paste("選択されたVDJタイプ (", toupper(input$vdj_type), ") のデータが見つからないか、空です。")))
-      validate(need("sample" %in% colnames(df), "データに 'sample' 列が必要です。"))
+      shiny::validate(shiny::need(!is.null(df) && nrow(df) > 0, paste("選択されたVDJタイプ (", toupper(input$vdj_type %||% ""), ") のデータが見つからないか、空です。")))
+      shiny::validate(shiny::need("sample" %in% colnames(df), "データに 'sample' 列が必要です。"))
       return(df)
     }) |> bindCache(input$vdj_type, myReactives$tcr_df, myReactives$bcr_df)
 
@@ -122,7 +126,7 @@ diversityAnalysisServer <- function(id, myReactives) {
       updateSelectInput(session, "target_gene_column",
                         choices = final_choices,
                         selected = selected_choice_val)
-    }) |> bindEvent(input$vdj_type, reactive_data(), ignoreNULL = FALSE, ignoreInit = FALSE)
+    }) |> bindEvent(input$vdj_type, reactive_data, ignoreNULL = FALSE, ignoreInit = FALSE)
 
     
     # --- リアクティブ: 解析結果の計算 ---
@@ -153,9 +157,13 @@ diversityAnalysisServer <- function(id, myReactives) {
 
       index_lookup <- c(
         "Shannon" = "shannon",
-        "Simpson" = "simpson",
+        "Gini-Simpson" = "simpson",
         "Inverse Simpson" = "invsimpson",
-        "Chao1 (推定種数)" = "chao1"
+        "Chao1 (Richness Estimation)" = "chao1",
+        "ACE (Richness Estimation)" = "ace",
+        "Pielou's Evenness" = "pielou",
+        "D50 (Clonal Dominance)" = "d50",
+        "Gini Index (Inequality)" = "gini"
       )
       index_display_name <- names(index_lookup)[which(index_lookup == index_method)]
       validate(need(length(index_display_name) > 0, "多様性指数の表示名が見つかりません。"))
@@ -163,8 +171,8 @@ diversityAnalysisServer <- function(id, myReactives) {
       showNotification(paste(index_display_name, "Index 計算中..."), id="calc_diversity", duration=NULL, type="message")
 
       # --- 列の存在チェック ---
-      validate(need(clone_id_col %in% colnames(df), paste("クローンID列 '", clone_id_col, "' がデータに存在しません。")))
-      validate(need(group_col %in% colnames(df), paste("グループ列 '", group_col, "' がデータに存在しません。")))
+      shiny::validate(shiny::need(clone_id_col %in% colnames(df), paste("クローンID列 '", clone_id_col, "' がデータに存在しません。")))
+      shiny::validate(shiny::need(group_col %in% colnames(df), paste("グループ列 '", group_col, "' がデータに存在しません。")))
 
       # --- 計算準備 (abundance_matrix の作成) ---
       # NA値を含む行をフィルタリングし、グループごとのクローン数を計算
@@ -190,8 +198,36 @@ diversityAnalysisServer <- function(id, myReactives) {
         if (index_method %in% c("shannon", "simpson", "invsimpson")) {
           vegan::diversity(abundance_matrix, index = index_method)
         } else if (index_method == "chao1") {
-          chao_results <- vegan::estimateR(t(abundance_matrix))
-          chao_results[2, ]
+          chao_results <- vegan::estimateR(abundance_matrix) # estimateR usually expects samples in rows
+          if("S.chao1" %in% rownames(chao_results)) chao_results["S.chao1", ] else chao_results[2, ]
+        } else if (index_method == "ace") {
+          ace_results <- vegan::estimateR(abundance_matrix)
+          if("S.ACE" %in% rownames(ace_results)) ace_results["S.ACE", ] else ace_results[4, ]
+        } else if (index_method == "pielou") {
+          shannon <- vegan::diversity(abundance_matrix, index = "shannon")
+          richness <- vegan::specnumber(abundance_matrix)
+          shannon / log(richness)
+        } else if (index_method == "d50") {
+          # D50: Percentage of unique clones required to account for 50% of total cells
+          apply(abundance_matrix, 1, function(x) {
+            x <- x[x > 0]
+            if (length(x) == 0) return(NA)
+            x_sorted <- sort(x, decreasing = TRUE)
+            cum_sum <- cumsum(x_sorted)
+            total <- sum(x)
+            d50_count <- which(cum_sum >= total * 0.5)[1]
+            (d50_count / length(x)) * 100
+          })
+        } else if (index_method == "gini") {
+          # Gini Index: 0 (equality) to 1 (inequality)
+          apply(abundance_matrix, 1, function(x) {
+            x <- x[x > 0]
+            if (length(x) <= 1) return(0)
+            x_sorted <- sort(x)
+            n <- length(x_sorted)
+            i <- 1:n
+            sum((2 * i - n - 1) * x_sorted) / (n * sum(x_sorted))
+          })
         } else {
           stop("無効な多様性指数です。")
         }

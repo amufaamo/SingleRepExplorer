@@ -1,8 +1,6 @@
 # Large data files
 *.rds
 *.RData
-*.csv
-
 # Git
 .git
 .gitignore
@@ -27,5 +25,7 @@ images/
 # Build logs
 build_log.txt
 
-# Example data (can be mounted as volume)
-example/
+# Example data must be included for the 'Demo Data' button to work
+!example/
+!example/*.csv
+!example/*.h5

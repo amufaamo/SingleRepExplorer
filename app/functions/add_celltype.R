@@ -3,8 +3,18 @@ library(HGNChelper)
 library(dplyr)
 library(purrr)
 
-source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/gene_sets_prepare.R")
-source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_score_.R")
+# Check for local scType functions first, then fallback to URL if needed
+if (file.exists("gene_sets_prepare.R")) {
+  source("gene_sets_prepare.R")
+} else {
+  try(source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/gene_sets_prepare.R"), silent = TRUE)
+}
+
+if (file.exists("sctype_score_.R")) {
+  source("sctype_score_.R")
+} else {
+  try(source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_score_.R"), silent = TRUE)
+}
 
 add_celltype <- function(myReactives) {
   seurat_object <- myReactives$seurat_object

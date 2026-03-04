@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     git \
     libgsl-dev \
     libhdf5-dev \
+    libglpk-dev \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # STEP 3: Rパッケージのインストール
@@ -25,30 +27,33 @@ RUN apt-get update && apt-get install -y \
 # --- 3.1 & 3.2 (変更なし) ---
 # ★★★★★ ここに 'openxlsx' を追加 ★★★★★
 RUN echo "---> Installing Shiny, Tidyverse, and plotting packages..." && \
-    R -e "install.packages(c('shiny', 'shinyjs', 'shinyalert', 'shinyBS', 'shinythemes', 'shinybusy', 'shinyWidgets', 'DT', 'dplyr', 'tidyr', 'ggplot2', 'ggsci', 'ggpubr', 'ggrepel', 'patchwork', 'plotly', 'RColorBrewer', 'scales', 'stringr', 'forcats', 'data.table', 'readr', 'tibble', 'magrittr', 'htmltools', 'openxlsx'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')" 
+    R -e "install.packages(c('shiny', 'shinyjs', 'shinyalert', 'shinyBS', 'shinythemes', 'shinybusy', 'shinyWidgets', 'DT', 'dplyr', 'tidyr', 'ggplot2', 'ggsci', 'ggpubr', 'ggrepel', 'patchwork', 'plotly', 'RColorBrewer', 'scales', 'stringr', 'forcats', 'data.table', 'readr', 'tibble', 'magrittr', 'htmltools', 'openxlsx', 'bslib'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')" 
+
 
 # --- 3.3: バイオインフォマティクス関連のCRANパッケージ ---
 RUN echo "---> Installing Bioinformatics related packages from CRAN..." && \
-    R -e "install.packages(c('ape', 'phangorn', 'circlize', 'vegan', 'HGNChelper', 'hdf5r'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')"
+    R -e "install.packages(c('ape', 'phangorn', 'circlize', 'vegan', 'HGNChelper', 'hdf5r', 'enrichR'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')"
 
 # --- 3.4: ggplot拡張とその他のユーティリティ ---
 # ggtreeを削除
 RUN echo "---> Installing ggplot extensions and other utilities..." && \
-    R -e "install.packages(c('ggvenn', 'ggnewscale', 'ggtreeExtra', 'ggpointdensity', 'viridis', 'ggExtra', 'ggalluvial', 'ComplexHeatmap'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')"
+    R -e "install.packages(c('ggvenn', 'ggnewscale', 'ggtreeExtra', 'ggpointdensity', 'viridis', 'ggExtra', 'ggalluvial', 'ComplexHeatmap', 'stringdist', 'igraph', 'ggnetwork', 'jsonlite', 'httr'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')"
+
 
 # --- 3.5: BioconductorとGitHubパッケージのインストーラー (変更なし) ---
 RUN echo "---> Installing installer packages (BiocManager, remotes)..." && \
     R -e "install.packages(c('BiocManager', 'devtools', 'remotes', 'tools'), dependencies = TRUE, repos = 'https://cloud.r-project.org/')"
 
-# --- 3.6: Bioconductorパッケージのインストール ---
+# --- 3.6: Bioconductor packages (updated for v2.0 Plan) ---
 RUN echo "---> Installing Bioconductor packages..." && \
-    R -e "BiocManager::install(c('Seurat', 'msa', 'Biostrings', 'scater', 'scran', 'ggtree', 'dowser'), update = FALSE, ask = FALSE, dependencies = TRUE)"
+    R -e "BiocManager::install(c('Seurat', 'harmony', 'SingleR', 'celldex', 'fgsea', 'slingshot', 'msigdbr', 'msa', 'Biostrings', 'scater', 'scran', 'ggtree', 'dowser'), update = FALSE, ask = FALSE, dependencies = TRUE)"
 
-# --- 3.7: GitHubパッケージのインストール (presto を追加) ---
-RUN echo "---> Installing GitHub packages (scRepertoire, immunarch, presto)..." && \
+# --- 3.7: GitHubパッケージのインストール (presto, CellChat を追加) ---
+RUN echo "---> Installing GitHub packages (scRepertoire, immunarch, presto, CellChat)..." && \
     R -e "remotes::install_github('ncborcherding/scRepertoire', dependencies = TRUE, upgrade = 'never')" && \
     R -e "remotes::install_github('immunomind/immunarch', dependencies = TRUE, upgrade = 'never')" && \
-    R -e "remotes::install_github('immunogenomics/presto', dependencies = TRUE, upgrade = 'never')"
+    R -e "remotes::install_github('immunogenomics/presto', dependencies = TRUE, upgrade = 'never')" && \
+    R -e "remotes::install_github('sqjin/CellChat', dependencies = TRUE, upgrade = 'never')"
 
 # --- 3.8: PhantomJSのインストール (変更なし) ---
 RUN echo "---> Installing phantomjs for webshot..." && \

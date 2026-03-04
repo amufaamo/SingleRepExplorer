@@ -55,7 +55,8 @@ clonalAbundancePlotServer <- function(id, myReactives) {
       req(df, "raw_clonotype_id" %in% names(df), input$group_by %in% names(df))
       df_filtered <- df %>%
         dplyr::filter(!is.na(.data[[input$group_by]]) & .data[[input$group_by]] != "")
-      validate(need(nrow(df_filtered) > 0, paste("No data after removing NA/empty from", input$group_by)))
+      grouping_var_safe <- input$group_by %||% ""
+      shiny::validate(shiny::need(nrow(df_filtered) > 0, paste("No data after removing NA/empty from", grouping_var_safe)))
       df_filtered
     })
 
@@ -63,7 +64,8 @@ clonalAbundancePlotServer <- function(id, myReactives) {
       df <- reactive_df_raw()
       req(df, input$group_by)
       available_groups <- sort(unique(df[[input$group_by]]))
-      validate(need(length(available_groups) > 0, "No available groups found."))
+      grouping_var_safe <- input$group_by %||% ""
+      validate(need(length(available_groups) > 0, paste("No available groups found in:", grouping_var_safe)))
       checkboxGroupInput(session$ns("filter_groups"),
                          label = paste("Filter", tools::toTitleCase(gsub("_", " ", input$group_by)), ":"),
                          choices = available_groups,
@@ -97,7 +99,7 @@ clonalAbundancePlotServer <- function(id, myReactives) {
         # 4. プロットしやすいようにグループ列の名前を変更
         dplyr::rename(group = .data[[grouping_var]])
 
-      validate(need(nrow(plot_data) > 0, "No data to plot after processing."))
+      shiny::validate(shiny::need(nrow(plot_data) > 0, "No data to plot after processing."))
       return(plot_data)
     })
 

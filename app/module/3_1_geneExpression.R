@@ -169,16 +169,16 @@ geneExpressionServer <- function(id, myReactives) {
     plot <- reactive({
       # 入力値のバリデーション
       req(myReactives$seurat_object, input$gene, myReactives$available_genes)
-      validate(
-        need(length(input$gene) > 0, "Please enter at least one gene name.")
+      shiny::validate(
+        shiny::need(length(input$gene) > 0, "Please enter at least one gene name.")
       )
 
       # Seuratオブジェクトに存在する有効な遺伝子のみを抽出
       valid_genes <- intersect(input$gene, myReactives$available_genes)
 
       # 有効な遺伝子がない場合はエラーメッセージを表示
-      validate(
-        need(length(valid_genes) > 0,
+      shiny::validate(
+        shiny::need(length(valid_genes) > 0,
              "No valid genes found. Please check the entered gene names or download the available feature list.")
       )
       
@@ -189,17 +189,25 @@ geneExpressionServer <- function(id, myReactives) {
         if (input$plot_type == "feature_plot") input$reduction else TRUE
       )
 
+      # Create a local copy to avoid mutating the global object's scale.data extensively
+      so <- myReactives$seurat_object
+      if (input$plot_type == "heatmap") {
+         tryCatch({
+            so <- ScaleData(so, features = valid_genes, verbose = FALSE)
+         }, error = function(e) {})
+      }
+
       # プロットタイプに応じてプロットを生成
       tryCatch({
         switch(input$plot_type,
           "feature_plot" = FeaturePlot(myReactives$seurat_object, features = valid_genes, reduction = input$reduction, pt.size = input$point_size) + theme(legend.position = input$legend),
           "violin_plot"  = VlnPlot(myReactives$seurat_object, features = valid_genes, group.by = input$group_by, pt.size = input$point_size) + theme(legend.position = input$legend),
           "dot_plot"     = DotPlot(myReactives$seurat_object, features = valid_genes, group.by = input$group_by) + theme(legend.position = input$legend),
-          "heatmap"      = DoHeatmap(myReactives$seurat_object, features = valid_genes, group.by = input$group_by)
+          "heatmap"      = DoHeatmap(so, features = valid_genes, group.by = input$group_by)
         )
       }, error = function(e) {
-        validate(
-          need(FALSE, paste("An error occurred while generating the plot:", e$message))
+        shiny::validate(
+          shiny::need(FALSE, paste("An error occurred while generating the plot:", e$message))
         )
       })
     })

@@ -1,14 +1,174 @@
-.navbar-header {
-  width:100% 
+/* SingleRepExplorer Premium Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
+
+:root {
+  --primary: #4361ee;
+  --primary-hover: #3a56d4;
+  --secondary: #7209b7;
+  --accent: #4cc9f0;
+  --bg-light: #f8f9fa;
+  --text-dark: #212529;
+  --text-muted: #6c757d;
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+  --radius-md: 12px;
+  --radius-lg: 16px;
 }
 
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+}
+
+/* Navbar Enhancements */
+.navbar {
+  font-family: 'Outfit', sans-serif;
+  background: linear-gradient(135deg, #1e1e2f 0%, #2d3436 100%);
+  border: none;
+  box-shadow: var(--shadow-md);
+  padding: 0.5rem 1rem;
+}
+
+.navbar-default .navbar-brand {
+  color: #fff !important;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  font-size: 1.5rem;
+}
+
+.navbar-default .navbar-nav > li > a {
+  color: rgba(255,255,255,0.8) !important;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  margin: 0 4px;
+}
+
+.navbar-default .navbar-nav > li > a:hover {
+  background-color: rgba(255,255,255,0.1) !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+
+.navbar-default .navbar-nav > .active > a, 
+.navbar-default .navbar-nav > .active > a:focus, 
+.navbar-default .navbar-nav > .active > a:hover {
+  background: var(--primary) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 15px rgba(67, 97, 238, 0.4);
+}
+
+/* Sidebar Styling */
+.well {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-sm) !important;
+  padding: 20px !important;
+}
+
+.sidebarPanel h4 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  color: #1e1e2f;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--bg-light);
+  padding-bottom: 10px;
+}
+
+/* Button Styling */
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.2px;
+  padding: 8px 16px;
+}
+
+.btn-primary {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 4px 12px rgba(67, 97, 238, 0.2);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(67, 97, 238, 0.3);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef233c 0%, #d90429 100%) !important;
+  border: none;
+}
+
+/* Data Tables Styling */
+.dataTable {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: var(--primary) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px;
+}
+
+/* Plot Container */
 .shiny-plot-output {
-  height: 500px !important;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 15px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 30px;
+  border: 1px solid rgba(0,0,0,0.03);
+  transition: transform 0.3s ease;
 }
 
+.shiny-plot-output:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Footer */
 footer {
-  color: #999999;
-  font-size: 1.2rem;
-  bottom: 0;
-  position: fixed;
+  margin-top: 50px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 20px 0;
+  background-color: #fff;
+  border-top: 1px solid #eee;
+  width: 100%;
+  text-align: center;
+  position: relative !important; /* Changed from fixed to flow with page */
+}
+
+/* Micro-animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.main-panel-content {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }

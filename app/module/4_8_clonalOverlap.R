@@ -1,24 +1,45 @@
 #source("../utils.R")
 source("utils.R")
-# --- UI 関数定義 (デバッグ用・最小版) ---
+# --- UI Definition ---
 clonalOverlapUI <- function(id) {
     ns <- NS(id)
     sidebarLayout(
         sidebarPanel(
             vdjType(ns),
-            selectInput(ns("clone_identifier_column"), "クローン識別子列", choices = NULL),
+            selectInput(ns("clone_identifier_column"), "Clonotype Column", choices = NULL),
             groupByInput(ns),
-            commonPlotOptions(ns) # 共通プロットオプション
+            hr(),
+            h4("Analysis Settings"),
+            selectInput(ns("overlap_method"), "Overlap Method (Beta Diversity):", 
+                        choices = c("Simple Overlap (Intersect/Min)" = "overlap", 
+                                    "Jaccard Index" = "jaccard", 
+                                    "Morisita-Horn Index" = "morisita")),
+            numericInput(ns("top_n_clones"), "Top N Clones for Alluvial:", value = 15, min = 5, max = 100),
+            hr(),
+            commonPlotOptions(ns) # Common Plot options
         ),
         mainPanel(
-            h3("Plot"),
-            downloadButton(ns("download_plot"), "Download plot (.pdf)"),
-            plotOutput(ns("plot")),
-            h3("Table"),
-            DTOutput(ns("table")) # テーブルID変更
-        ),
+            tabsetPanel(
+              tabPanel("Overlap Heatmap", 
+                 br(),
+                 h3("Beta Diversity Heatmap"),
+                 downloadButton(ns("download_plot"), "Download plot (.pdf)"),
+                 plotOutput(ns("plot"), height = "500px"),
+                 hr(),
+                 h3("Overlap Matrix"),
+                 DTOutput(ns("table"))
+              ),
+              tabPanel("Alluvial Flow Map",
+                 br(),
+                 h3("Clonotype Flow across Groups"),
+                 downloadButton(ns("download_alluvial"), "Download Map (.pdf)"),
+                 plotOutput(ns("alluvial_plot"), height = "600px")
+              )
+            )
+        )
     )
 }
+
 
 # --- サーバー関数定義 (デバッグ用・最小版) ---
 clonalOverlapServer <- function(id, myReactives) {
@@ -37,8 +58,8 @@ clonalOverlapServer <- function(id, myReactives) {
         df <- myReactives$bcr_df
       }
 
-      validate(need(!is.null(df) && nrow(df) > 0, paste("選択されたVDJタイプ (", toupper(input$vdj_type), ") のデータが見つからないか、空です。")))
-      validate(need(all(expected_cols %in% colnames(df)), paste("データに必須列 (", paste(expected_cols, collapse=", "), ") が含まれていません。")))
+      shiny::validate(shiny::need(!is.null(df) && nrow(df) > 0, paste("選択されたVDJタイプ (", toupper(input$vdj_type %||% ""), ") のデータが見つからないか、空です。")))
+      shiny::validate(shiny::need(all(expected_cols %in% colnames(df)), paste("データに必須列 (", paste(expected_cols, collapse=", "), ") が含まれていません。")))
       return(df)
     })
 
@@ -89,7 +110,7 @@ clonalOverlapServer <- function(id, myReactives) {
           if(is.na(selected_choice_val) || is.null(selected_choice_val)) selected_choice_val <- valid_choices_vals[1]
       }
        updateSelectInput(session, "clone_identifier_column", choices = final_choices, selected = selected_choice_val)
-    }) |> bindEvent(input$vdj_type, reactive_data(), ignoreNULL = FALSE, ignoreInit = FALSE)
+    }) |> bindEvent(input$vdj_type, reactive_data, ignoreNULL = FALSE, ignoreInit = FALSE)
 
 
 
@@ -113,123 +134,76 @@ clonalOverlapServer <- function(id, myReactives) {
             showNotification("Calculating overlap (Debug Mode)...", duration = NULL, id = "overlap_calc_debug")
             on.exit(removeNotification("overlap_calc_debug"), add = TRUE)
 
-            # --- データ前処理 ---
-            df_processed <- tryCatch(
-                {
-                    message("Preprocessing data...")
-                    convert_to_char <- function(col_vector) {
-                        if (is.list(col_vector) && !is.data.frame(col_vector)) {
-                            vapply(col_vector, function(x) {
-                                if (is.null(x) || length(x) == 0 || all(is.na(x))) {
-                                    NA_character_
-                                } else if (is.atomic(x)) {
-                                    paste(as.character(x), collapse = ", ")
-                                } else {
-                                    "[COMPLEX]"
-                                }
-                            }, FUN.VALUE = character(1), USE.NAMES = FALSE)
-                        } else {
-                            as.character(col_vector)
-                        }
-                    }
-                    temp_df <- df %>%
-                        mutate(
-                            .group_str = as.character(.data[[group_col]]),
-                            effective_clonotype = as.character(.data[[clone_col]])
-                        ) %>%
-                        filter(!is.na(.group_str) & .group_str != "" &
-                            !is.na(effective_clonotype) & effective_clonotype != "") %>%
-                        dplyr::select(.group_str, effective_clonotype) %>%
-                        distinct()
-                    message("Preprocessing finished.")
-                    if (!all(c(".group_str", "effective_clonotype") %in% colnames(temp_df))) {
-                        stop("Preprocessing failed to create required columns.")
-                    }
-                    temp_df
-                },
-                error = function(e) {
-                    err_msg <- paste("Data processing error:", e$message)
-                    warning(err_msg)
-                    showNotification(err_msg, type = "error", duration = 10)
-                    NULL
-                }
-            )
+            # --- Data Preprocessing for counts ---
+            df_counts <- tryCatch({
+              df %>%
+                mutate(.group_str = as.character(.data[[group_col]]),
+                       effective_clonotype = as.character(.data[[clone_col]])) %>%
+                filter(!is.na(.group_str) & .group_str != "" &
+                       !is.na(effective_clonotype) & effective_clonotype != "") %>%
+                group_by(.group_str, effective_clonotype) %>%
+                summarise(count = n(), .groups = 'drop')
+            }, error = function(e) { NULL })
 
-            # ★★★ shiny::validate と shiny::need を使用 ★★★
-            req(df_processed, cancelOutput = TRUE)
-            shiny::validate(
-                shiny::need(is.data.frame(df_processed), "Preprocessing result ('df_processed') is not a data frame."),
-                shiny::need(nrow(df_processed) > 0, "No valid group/clonotype pairs found after filtering (df_processed is empty)."),
-                shiny::need(".group_str" %in% colnames(df_processed), "Required column '.group_str' is missing after preprocessing."),
-                shiny::need("effective_clonotype" %in% colnames(df_processed), "Required column 'effective_clonotype' is missing after preprocessing.")
-            )
-            # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-            message("--- df_processed successfully created ---")
-            message("Structure:")
-            try(print(str(df_processed)), silent = TRUE)
-            message("Head:")
-            try(print(head(df_processed)), silent = TRUE)
-            message("-------------------------------------------")
+            req(df_counts, cancelOutput = TRUE)
 
-            # --- グループリスト取得 ---
-            groups <- tryCatch(
-                {
-                    unique(df_processed$.group_str)
-                },
-                error = function(e) {
-                    warning("Could not get unique groups. Error: ", e$message)
-                    NULL
-                }
-            )
-            req(groups, cancelOutput = TRUE)
-            # ★★★ shiny::validate と shiny::need を使用 ★★★
+            groups <- sort(unique(df_counts$.group_str))
             shiny::validate(shiny::need(length(groups) >= 2, "Need at least two groups to calculate overlap."))
-            # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-            groups <- sort(groups)
-            message(paste("Groups found:", paste(groups, collapse = ", ")))
 
-            # --- ペアワイズ計算関数 ---
-            calc_overlap_simple <- function(group1, group2, data_grouped) {
-                clones1 <- data_grouped %>%
-                    filter(.group_str == group1) %>%
-                    pull(effective_clonotype)
-                clones2 <- data_grouped %>%
-                    filter(.group_str == group2) %>%
-                    pull(effective_clonotype)
-                if (length(clones1) == 0 || length(clones2) == 0) {
-                    return(0)
+            # --- Pairwise Calculation Function ---
+            calc_overlap_index <- function(g1, g2, data_counts, method) {
+                d1 <- data_counts %>% filter(.group_str == g1)
+                d2 <- data_counts %>% filter(.group_str == g2)
+                
+                clones1 <- d1$effective_clonotype
+                clones2 <- d2$effective_clonotype
+                
+                if (method == "overlap") {
+                    intersect_size <- length(intersect(clones1, clones2))
+                    min_size <- min(length(clones1), length(clones2))
+                    return(if (min_size > 0) intersect_size / min_size else 0)
+                } 
+                else if (method == "jaccard") {
+                    intersect_size <- length(intersect(clones1, clones2))
+                    union_size <- length(union(clones1, clones2))
+                    return(if (union_size > 0) intersect_size / union_size else 0)
                 }
-                intersect_size <- length(intersect(clones1, clones2))
-                min_size <- min(length(clones1), length(clones2))
-                value <- if (min_size > 0) intersect_size / min_size else 0
-                return(value)
+                else if (method == "morisita") {
+                    common_clones <- intersect(clones1, clones2)
+                    if(length(common_clones) == 0) return(0)
+                    
+                    x_i <- d1 %>% filter(effective_clonotype %in% common_clones) %>% arrange(effective_clonotype) %>% pull(count)
+                    y_i <- d2 %>% filter(effective_clonotype %in% common_clones) %>% arrange(effective_clonotype) %>% pull(count)
+                    X <- sum(d1$count)
+                    Y <- sum(d2$count)
+                    sum_x_sq <- sum(d1$count^2)
+                    sum_y_sq <- sum(d2$count^2)
+                    
+                    numerator <- 2 * sum(x_i * y_i)
+                    denominator <- (sum_x_sq / X^2 + sum_y_sq / Y^2) * (X * Y)
+                    return(if (denominator > 0) numerator / denominator else 0)
+                }
+                return(0)
             }
 
-            # --- 行列計算ループ ---
+            # --- Matrix Loop ---
             mat <- matrix(NA_real_, nrow = length(groups), ncol = length(groups), dimnames = list(groups, groups))
-            message("Calculating matrix...")
-            tryCatch(
-                {
-                    for (i in 1:length(groups)) {
-                        for (j in 1:length(groups)) {
-                            g1 <- groups[i]
-                            g2 <- groups[j]
-                            if (i == j) {
-                                mat[g1, g2] <- 1.0
-                            } else {
-                                mat[g1, g2] <- calc_overlap_simple(g1, g2, df_processed)
-                            }
+            method_used <- input$overlap_method
+            
+            tryCatch({
+                for (i in seq_along(groups)) {
+                    for (j in seq_along(groups)) {
+                        g1 <- groups[i]
+                        g2 <- groups[j]
+                        if (i == j) {
+                            mat[g1, g2] <- 1.0
+                        } else {
+                            mat[g1, g2] <- calc_overlap_index(g1, g2, df_counts, method_used)
                         }
                     }
-                    message("Matrix calculation complete.")
-                },
-                error = function(e) {
-                    err_msg <- paste("Error during matrix calculation loop:", e$message)
-                    warning(err_msg)
-                    showNotification(err_msg, type = "error", duration = 10)
-                    return(matrix(NA_real_, nrow = 0, ncol = 0))
                 }
-            )
+            }, error = function(e){ NULL })
+
             req(mat, cancelOutput = TRUE)
 
             return(mat) # 行列のみを返す
@@ -265,7 +239,8 @@ clonalOverlapServer <- function(id, myReactives) {
                 scale_fill_viridis_c(option = "plasma", limits = fill_limits, na.value = "grey80", name = "Overlap") +
                 geom_text(aes(label = round(Value, 2)), color = "white", size = 3.5, na.rm = TRUE, check_overlap = TRUE) +
                 coord_fixed() +
-                labs(x = NULL, y = NULL, title = "Clonal Overlap Heatmap") +
+                labs(x = NULL, y = NULL, title = paste("Beta Diversity:", tools::toTitleCase(input$overlap_method))) +
+
                 theme_minimal(base_size = 11) +
                 theme(
                     axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
@@ -304,5 +279,62 @@ clonalOverlapServer <- function(id, myReactives) {
                 ggsave(file, plot = p, width = (input$plot_width %||% 600) / 72, height = (input$plot_height %||% 500) / 72, device = "pdf", dpi = 300)
             }
         )
+        # --- Alluvial Plot ---
+        alluvial_obj <- reactive({
+            req(reactive_data(), input$group_by, input$clone_identifier_column)
+            df <- reactive_data()
+            group_col <- input$group_by
+            clone_col <- input$clone_identifier_column
+            
+            shiny::validate(
+                shiny::need(group_col %in% colnames(df), paste("Group column missing.")),
+                shiny::need(clone_col %in% colnames(df), paste("Clonotype column missing."))
+            )
+            
+            # Count clone occurrences
+            df_alluvial <- df %>%
+                filter(!is.na(.data[[group_col]]) & !is.na(.data[[clone_col]]) & 
+                       .data[[group_col]] != "" & .data[[clone_col]] != "") %>%
+                group_by(.data[[group_col]], .data[[clone_col]]) %>%
+                summarise(Freq = n(), .groups = 'drop')
+                
+            # Filter to top N clones based on TOTAL frequency across all groups
+            top_clones <- df_alluvial %>%
+                group_by(.data[[clone_col]]) %>%
+                summarise(TotalFreq = sum(Freq)) %>%
+                top_n(input$top_n_clones, TotalFreq) %>%
+                pull(.data[[clone_col]])
+                
+            df_plot <- df_alluvial %>% filter(.data[[clone_col]] %in% top_clones)
+            
+            shiny::validate(shiny::need(nrow(df_plot) > 0, "No data available for plotting top clones."))
+            
+            # Use ggalluvial
+            p <- ggplot(df_plot,
+                   aes(x = .data[[group_col]], stratum = .data[[clone_col]], alluvium = .data[[clone_col]],
+                       y = Freq, fill = .data[[clone_col]], label = .data[[clone_col]])) +
+                scale_x_discrete(expand = c(.1, .1)) +
+                ggalluvial::geom_flow(alpha = 0.5) +
+                ggalluvial::geom_stratum(alpha = 0.8) +
+                theme_pubr() +
+                theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1)) +
+                labs(y = "Frequency", x = tools::toTitleCase(gsub("_", " ", group_col)), 
+                     title = paste("Top", input$top_n_clones, "Clonal Transitions"))
+            
+            return(p)
+        })
+
+        output$alluvial_plot <- renderPlot({
+            alluvial_obj()
+        })
+        
+        output$download_alluvial <- downloadHandler(
+            filename = function() { paste0("alluvial_", input$group_by, ".pdf") },
+            content = function(file) {
+                 ggsave(file, plot = alluvial_obj(), width = 10, height = 7, device = "pdf")
+            }
+        )
+
     }) # moduleServer 終了
-} # clonalOverlapServer_debug 終了
+}
+

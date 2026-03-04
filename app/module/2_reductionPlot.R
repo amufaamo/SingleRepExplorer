@@ -38,12 +38,32 @@ reductionPlotUI <- function(id) {
         selectInput(ns("search_column"), "2. Select Column to Search", choices = NULL),
         selectizeInput(ns("search_values"), "3. Select Value(s) to Highlight", choices = NULL, multiple = TRUE, options = list(placeholder = 'Type or select values')),
         actionButton(ns("search_highlight_btn"), "Apply Highlight", icon = icon("search"))
-      )
+      ),
+      hr(),
+      h4("Re-run Annotation"),
+      selectInput(ns("annotation_method"), "Annotation Method", choices = c("scType (Marker-based)" = "sctype", "SingleR (Reference-based)" = "singler")),
+      conditionalPanel(
+        condition = sprintf("input['%s'] == 'sctype'", ns("annotation_method")),
+        selectInput(ns("sctype_tissue"), "Target Tissue (scType)", choices = c("Immune system", "Pancreas", "Heart", "Brain", "Placenta", "Kidney", "Liver", "Lung", "Muscle", "Intestine"))
+      ),
+      conditionalPanel(
+        condition = sprintf("input['%s'] == 'singler'", ns("annotation_method")),
+        selectInput(ns("singler_ref"), "Reference Dataset (celldex)",
+                    choices = list("Human Primary Cell Atlas (Broad)" = "HumanPrimaryCellAtlasData", "Monaco Immune Data (Immune)" = "MonacoImmuneData", "Database of Immune Cell Expression (DICE)" = "DatabaseImmuneCellExpressionData", "Novershtern Hematopoietic Data" = "NovershternHematopoieticData", "Blueprint Encode Data" = "BlueprintEncodeData", "Mouse RNA-seq Data (Broad)" = "MouseRNAseqData", "ImmGen (Mouse Immune)" = "ImmGenData"))
+      ),
+      actionButton(ns("run_annotation_btn"), "Run Annotation", icon = icon("tags"), class = "btn-info")
     ),
     mainPanel(
       h3("Plot"),
-      downloadButton(ns("download_plot"), "Download plot (.pdf)"),
-      plotOutput(ns("plot")),
+      div(style = "display: flex; justify-content: space-between; align-items: center;",
+          downloadButton(ns("download_plot"), "Download plot (.pdf)"),
+          div(
+            actionButton(ns("reset_subset_btn"), "Reset Subset", icon = icon("undo"), class = "btn-secondary"),
+            actionButton(ns("subset_btn"), "Subset Brushed Cells", icon = icon("cut"), class = "btn-warning")
+          )
+      ),
+      br(),
+      plotOutput(ns("plot"), brush = brushOpts(id = ns("plot_brush"), resetOnNew = TRUE)),
       hr(),
       h3("Coordinates Table"),
       downloadButton(ns("download_table"), "Download Table (.csv)"),
@@ -230,14 +250,128 @@ reductionPlotServer <- function(id, myReactives) {
       so <- myReactives$seurat_object
       reduction_data <- so@reductions[[input$reduction]]@cell.embeddings
       table_data <- cbind(so@meta.data, reduction_data)
-      reduction_prefix <- sub("_$", "", names(dimnames(reduction_data))[1]) # UMAP_ or PC_ -> UMAP or PC
-      table_data %>% select(all_of(input$group_by), starts_with(paste0(reduction_prefix, "_")))
+      table_data$Barcode <- rownames(table_data)
+      reduction_prefix <- sub("_$", "", colnames(reduction_data)[1]) %>% sub("(?<=[A-Za-z])_1$", "", ., perl=TRUE)
+      # For UMAP_1, regex sub("_1$", "") returns "UMAP". 
+      # Then starts_with("UMAP_") matches UMAP_1, UMAP_2
+      if (grepl("_1$", colnames(reduction_data)[1])) {
+          reduction_prefix <- sub("_1$", "", colnames(reduction_data)[1])
+      } else {
+          reduction_prefix <- "UMAP" # fallback
+      }
+      table_data %>% select(Barcode, all_of(input$group_by), starts_with(paste0(reduction_prefix, "_")))
+    })
+    
+    # --- Interactive Subsetting Logic ---
+    observeEvent(input$subset_btn, {
+      req(myReactives$seurat_object, input$plot_brush)
+      so <- myReactives$seurat_object
+      
+      coords <- coordinates_data()
+      # Find the exact column names for x and y
+      # They typically look like UMAP_1 and UMAP_2
+      coord_cols <- grep("_[12]$", colnames(coords), value = TRUE)
+      
+      if(length(coord_cols) < 2) {
+         if(require(shinyalert)) shinyalert("Error", "Could not determine X/Y axes for selection.", type="error")
+         return()
+      }
+      x_col <- coord_cols[1]
+      y_col <- coord_cols[2]
+      
+      selected_rows <- brushedPoints(coords, input$plot_brush, xvar = x_col, yvar = y_col)
+      
+      if(nrow(selected_rows) == 0){
+        if(require(shinyalert)) shinyalert("Warning", "No cells selected. Please draw a box on the plot first.", type="warning")
+        return()
+      }
+      
+      selected_barcodes <- selected_rows$Barcode
+      
+      showModal(modalDialog(
+        title = "Confirm Subset",
+        HTML(paste0("You have selected <b>", length(selected_barcodes), "</b> cells. Do you want to strictly keep only these cells?<br><br><b>Note:</b> This will permanently alter the current session. All other tabs will immediately update to reflect only these cells.")),
+        br(), br(),
+        checkboxInput(ns("rerun_umap_checkbox"), "Re-run Normalization, PCA, and UMAP after subsetting", value = FALSE),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton(ns("confirm_subset_btn"), "Yes, Subset Data", class = "btn-danger")
+        )
+      ))
+      
+      observeEvent(input$confirm_subset_btn, {
+         removeModal()
+         
+         # Backup original seurat object if not done yet
+         if (is.null(myReactives$full_seurat_object)) {
+             myReactives$full_seurat_object <- so
+         }
+
+         # Perform Subsetting
+         so_sub <- subset(so, cells = selected_barcodes)
+         
+         if (input$rerun_umap_checkbox) {
+            withProgress(message = "Re-running standard pipeline...", value = 0, {
+              incProgress(0.2, detail = "NormalizeData")
+              so_sub <- NormalizeData(so_sub)
+              incProgress(0.4, detail = "FindVariableFeatures")
+              so_sub <- FindVariableFeatures(so_sub)
+              incProgress(0.6, detail = "ScaleData & PCA")
+              so_sub <- ScaleData(so_sub)
+              so_sub <- RunPCA(so_sub)
+              incProgress(0.8, detail = "Neighbors & Clusters")
+              so_sub <- FindNeighbors(so_sub, dims = 1:10)
+              so_sub <- FindClusters(so_sub)
+              incProgress(0.9, detail = "UMAP")
+              so_sub <- RunUMAP(so_sub, dims = 1:10)
+            })
+         }
+         
+         # Update global Reactives
+         myReactives$seurat_object <- so_sub
+         if(require(shinyalert)) shinyalert("Success", paste("Dataset successfully subsetted to", ncol(so_sub), "cells."), type="success")
+      }, ignoreInit = TRUE, once = TRUE)
+    })
+
+    # --- Reset Subsetting Logic ---
+    observeEvent(input$reset_subset_btn, {
+        if (!is.null(myReactives$full_seurat_object)) {
+            myReactives$seurat_object <- myReactives$full_seurat_object
+            myReactives$full_seurat_object <- NULL
+            if(require(shinyalert)) shinyalert("Dataset Reset", "The dataset has been returned to its original state before subsetting.", type="success")
+        } else {
+            if(require(shinyalert)) shinyalert("Info", "No subset has been performed yet.", type="info")
+        }
+    })
+
+    # --- Re-run Annotation Logic ---
+    observeEvent(input$run_annotation_btn, {
+       req(myReactives$seurat_object)
+       so <- myReactives$seurat_object
+       # Find if the helper functions exist (they are defined in 1_uploadCellranger.R)
+       if (!exists("run_sctype_and_update_seurat")) {
+           if(require(shinyalert)) shinyalert("Error", "Required annotation functions not found.", type="error")
+           return()
+       }
+       withProgress(message = "Running Annotation...", value = 0, {
+           if (input$annotation_method == "sctype") {
+               incProgress(0.2, detail = "Running scType cell typing...")
+               so <- run_sctype_and_update_seurat(so, tissue = input$sctype_tissue)
+           } else if (input$annotation_method == "singler") {
+               incProgress(0.2, detail = "Running SingleR cell typing...")
+               so <- run_singler_and_update_seurat(so, ref_name = input$singler_ref)
+           }
+           myReactives$seurat_object <- so
+       })
+       # Refresh group_by choices
+       update_group_by_select_input(session, myReactives, selected = if(input$annotation_method == "sctype") "sctype_celltype" else "singler_celltype")
+       if(require(shinyalert)) shinyalert("Success", "Annotation completed successfully.", type="success")
     })
     
     output$coordinates_table <- DT::renderDataTable({ coordinates_data() })
     
     output$download_plot <- downloadHandler(
-      filename = function() { paste0("DimPlot_", input$reduction, "_", inputg$group_by, ".pdf") },
+      filename = function() { paste0("DimPlot_", input$reduction, "_", input$group_by, ".pdf") },
       content = function(file) {
         req(plot())
         ggsave(file, plot = plot(), width = input$plot_width / 72, height = input$plot_height / 72, dpi = 300, device = "pdf")
@@ -276,9 +410,9 @@ update_group_by_select_input <- function(session, myReactives, selected = NULL) 
 
   minus_column <- c("orig.ident", "barcode")
   choices <- setdiff(potential_choices, minus_column)
-  choices <- choices[!grepl("^(RNA_snn_res\\.|TCR|BCR)", choices)]
+  choices <- choices[!grepl("^(RNA_snn_res\\.|TCR|BCR|raw_clonotype|clonotype)", choices, ignore.case=TRUE)]
 
-  validate(need(length(choices) > 0, "No suitable metadata columns found for grouping."))
+  shiny::validate(shiny::need(length(choices) > 0, "No suitable metadata columns found for grouping."))
 
   selected_value <- if (!is.null(selected) && selected %in% choices) {
     selected
@@ -288,7 +422,7 @@ update_group_by_select_input <- function(session, myReactives, selected = NULL) 
     choices[1]
   }
   
-  updateSelectInput(session$ns("group_by"), choices = choices, selected = selected_value)
+  updateSelectInput(session, "group_by", choices = choices, selected = selected_value)
 }
 
 # --- UIコンポーネント定義関数 (numericInputへ変更) ---

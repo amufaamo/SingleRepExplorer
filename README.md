@@ -23,10 +23,14 @@ For detailed documentation, please visit:
 SingleRepExplorer is a web-based interactive tool for **integrated single-cell RNA-seq and immune repertoire analysis**. It combines transcriptomic analysis with TCR/BCR repertoire profiling in a single platform. You can try the application immediately using the built-in **Demo Data** without needing to upload your own files.
 
 ### Transcriptome Analysis
-- UMAP/t-SNE visualization
+- UMAP/t-SNE visualization (with **Harmony** Batch Effect Correction)
 - Gene expression plots (Violin, Feature, Dot, Heatmap)
-- Differential expression analysis
-- Automated cell type annotation
+- Differential expression analysis (Supports **Multi-group Kruskal-Wallis** and Repertoire-specific grouping)
+- Powerful Enrichment Pathways (**EnrichR** & **GSEA** via MSigDB)
+- Automated cell type annotation (**scType** Marker-based & **SingleR** Reference-based)
+- **Trajectory Inference / Pseudotime** Analysis with clone tracking (Slingshot)
+- **Phenotype-Repertoire Correlation Engine** to find clone size-correlated genes
+- **Cell-Cell Communication Analysis (CellChat)** to infer signaling networks
 
 ### Repertoire Analysis (TCR/BCR)
 - Clonotype frequency and abundance
@@ -40,7 +44,7 @@ SingleRepExplorer is a web-based interactive tool for **integrated single-cell R
 The easiest way to run SingleRepExplorer is using Docker Hub:
 
 ```bash
-docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:latest
+docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:v2.0.0
 ```
 
 Then open your browser and go to: **http://localhost:3838**

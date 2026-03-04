@@ -56,8 +56,8 @@ trackClonotypeServer <- function(id, myReactives) {
         df <- myReactives$bcr_df
       }
 
-      validate(need(!is.null(df) && nrow(df) > 0, paste("選択されたVDJタイプ (", toupper(input$vdj_type), ") のデータが見つからないか、空です。")))
-      validate(need(all(expected_cols %in% colnames(df)), paste("データに必須列 (", paste(expected_cols, collapse=", "), ") が含まれていません。")))
+      shiny::validate(shiny::need(!is.null(df) && nrow(df) > 0, paste("選択されたVDJタイプ (", toupper(input$vdj_type %||% ""), ") のデータが見つからないか、空です。")))
+      shiny::validate(shiny::need(all(expected_cols %in% colnames(df)), paste("データに必須列 (", paste(expected_cols, collapse=", "), ") が含まれていません。")))
       return(df)
     })
 
@@ -112,7 +112,7 @@ trackClonotypeServer <- function(id, myReactives) {
           if(is.na(selected_choice_val) || is.null(selected_choice_val)) selected_choice_val <- valid_choices_vals[1]
       }
        updateSelectInput(session, "clone_identifier_column", choices = final_choices, selected = selected_choice_val)
-    }) |> bindEvent(input$vdj_type, reactive_data(), ignoreNULL = FALSE, ignoreInit = FALSE)
+    }) |> bindEvent(input$vdj_type, reactive_data, ignoreNULL = FALSE, ignoreInit = FALSE)
 
 
     # 3. Target Clonotypes の選択肢更新 (リスト列対応)
@@ -145,7 +145,7 @@ trackClonotypeServer <- function(id, myReactives) {
                             selected = head(available_clonotypes_char, 5), # Initial selection
                             server = TRUE) # Enable server-side processing
 
-    }) |> bindEvent(input$clone_identifier_column, reactive_data())
+    }) |> bindEvent(input$clone_identifier_column, reactive_data)
 
 
     # 4. Group Order のデフォルト値を設定 (リスト列対応)
@@ -173,7 +173,7 @@ trackClonotypeServer <- function(id, myReactives) {
       } else {
           updateTextInput(session, "order", value = "")
       }
-    }) |> bindEvent(input$group_by, reactive_data())
+    }) |> bindEvent(input$group_by, reactive_data)
 
 
     # --- リアクティブ: 追跡結果の計算 (Base R table() 使用版) ---
@@ -184,8 +184,8 @@ trackClonotypeServer <- function(id, myReactives) {
 
       df_orig <- reactive_data(); req(df_orig)
       clone_col_orig <- input$clone_identifier_column; group_col_orig <- input$group_by; targets <- input$target_clonotypes
-      validate(need(clone_col_orig %in% colnames(df_orig), paste("列 '", clone_col_orig, "' が存在しません。")))
-      validate(need(group_col_orig %in% colnames(df_orig), paste("列 '", group_col_orig, "' が存在しません。")))
+      shiny::validate(shiny::need(clone_col_orig %in% colnames(df_orig), paste("列 '", clone_col_orig, "' が存在しません。")))
+      shiny::validate(shiny::need(group_col_orig %in% colnames(df_orig), paste("列 '", group_col_orig, "' が存在しません。")))
 
       showNotification("クローン追跡データを計算中...", id="calc_tracking", duration = NULL, type = "message"); on.exit(removeNotification(id="calc_tracking"), add = TRUE)
 

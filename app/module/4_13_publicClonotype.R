@@ -64,7 +64,7 @@ publicClonotypeServer <- function(id, myReactives) {
       req(df, "raw_clonotype_id" %in% names(df), input$group_by %in% names(df))
       df_filtered <- df %>%
         dplyr::filter(!is.na(.data[[input$group_by]]) & .data[[input$group_by]] != "")
-      validate(need(nrow(df_filtered) > 0, paste("No data after removing NA/empty from", input$group_by)))
+      shiny::validate(shiny::need(nrow(df_filtered) > 0, paste("No data after removing NA/empty from", input$group_by %||% "")))
       df_filtered
     })
 
