@@ -1,7 +1,7 @@
 ---
-title: "SingleRepExplorer Manual"
+title: "SingleRepExplorer Manual (v1.0.0)"
 output: html_document
-date: "2026-01-21"
+date: "2026-04-27"
 ---
 
 ```{r setup, include=FALSE}
@@ -86,7 +86,15 @@ You should now see the `SingleRepExplorer` interface and can begin your analysis
 
 To stop the application, simply return to your terminal window where the command is running and press **`Ctrl+C`**.
 
+### Saving and Restoring Sessions (.qs2)
 
+After running the analysis pipeline, the entire session state—including the processed Seurat object, repertoire annotations, custom Lasso subsets, and all parameter settings—can be exported as a single `.qs2` file via the **"Save Session (.qs2)"** button at the top-right of the navigation bar.
+
+* The exported file can be **re-uploaded** later in the **Data Upload** tab to instantly restore the analysis without re-running the pipeline.
+* Saved sessions are also useful for sharing intermediate results with collaborators or for resuming work across machines.
+* The `.qs2` format (powered by the `qs2` R package) provides fast read/write performance compared to `.rds`.
+
+Optionally, the underlying processed Seurat object can also be downloaded as a standard `.rds` file for use in custom R workflows outside the application.
 
 
 ## 3. Data Upload and Processing
@@ -131,6 +139,34 @@ After selecting a file, a green "✅ Uploaded!" status message will appear besid
     *   Upon completion, a "🎉 Analysis finished successfully!" message appears, and the buttons are re-enabled.
 
 **Error Handling**: If you click [Run] without searching for or uploading the mandatory .h5 file, an alert box will appear.
+
+### 3. Memory-Preserved Quality Control (QC)
+
+A distinguishing feature of SingleRepExplorer is **memory-preserved QC**: the raw Seurat object is retained in memory after the initial upload, so QC thresholds can be **iteratively adjusted without re-uploading data**.
+
+When you upload an `.h5` file, the application immediately generates:
+
+* **Interactive QC scatter plots** (gene count vs. mitochondrial percentage, etc.)
+* **Violin plots** of `nFeature_RNA`, `nCount_RNA`, and `percent.mt`
+* **Live "Estimated Cells Remaining" counter** that updates in real-time as you change thresholds
+
+You can adjust:
+
+* **Minimum / Maximum nFeature_RNA**
+* **Minimum / Maximum nCount_RNA**
+* **Maximum mitochondrial percentage**
+
+After modifying any threshold, click **[Run]** again to re-run the pipeline with the new thresholds. The raw data is retained, so this re-execution is fast and does not require re-uploading.
+
+### 4. Restoring a Saved Session (.qs2)
+
+Instead of an `.h5` file, you can also upload a previously saved `.qs2` session file. This instantly restores the full analysis state—including the processed Seurat object, repertoire annotations, and prior parameter settings—**without re-running the pipeline**.
+
+This is the recommended way to:
+
+* Resume previous work
+* Share interim results with collaborators
+* Skip the long preprocessing step when re-opening the app
 
 ---
 
@@ -178,18 +214,35 @@ This powerful feature allows you to find specific cells based on complex criteri
 
 To return to the "Group by" cluster view, simply **uncheck** the "Enable Highlight by Search" box.
 
+---
+
+#### 3. Lasso Selection and Recursive Sub-clustering
+
+In addition to "Search & Highlight", SingleRepExplorer provides a **JavaScript-based Lasso selection** tool that lets you draw a freehand polygon directly on the UMAP/t-SNE plot to select an arbitrary cell population.
+
+1.  **Enable Lasso Mode**: Click the **"Lasso Select"** button above the plot. The cursor switches to drawing mode.
+2.  **Draw a Polygon**: Click-and-drag on the plot to outline the cells you wish to select. Release the mouse to close the polygon.
+3.  **Assign a Label**: A dialog will appear asking you to provide a name for the selected subset (e.g., `Clonotype1_region`). The label is added as a new metadata column on every selected cell.
+4.  **(Optional) Re-cluster the Subset**: After labeling, the application offers a **"Subset & Re-cluster"** action that:
+    *   Extracts the selected cells into a new working object,
+    *   Re-runs PCA / UMAP / clustering on this subset,
+    *   Switches the Dimensional Plot to display the sub-clustered subset.
+5.  **Persistent State**: The full-dataset analysis remains available — you can switch back at any time. Selected subsets persist across all other modules (DEG, Repertoire analyses, CellChat, etc.), so you can perform downstream analyses on the freshly defined population without re-uploading data.
+
+This recursive, hypothesis-driven sub-analysis loop—**select → label → re-cluster → analyze**—is one of the platform's key usability innovations and replaces what would normally require multiple coding iterations.
+
 ### Main Panel: Outputs
 
 #### 1. Plot
 
 This area displays the dimensional reduction plot you have configured.
-* **Download plot (.pdf)**: Click to download the current plot as a high-resolution, publication-ready PDF.
+* **Download plot (.pptx)**: Click to download the current plot as a high-resolution, publication-ready editable PowerPoint slide.
 
 #### 2. Coordinates Table
 
 This is an interactive table showing the underlying data for the plot.
 * It displays the selected "Group by" information (e.g., `seurat_clusters`) and the X/Y coordinates (e.g., `UMAP_1`, `UMAP_2`) for every cell.
-* **Download Table (.csv)**: Click to download this full data table as a CSV file.
+* **Download Table (.xlsx)**: Click to download this full data table as an Excel file.
 
 
 ## [Transcriptome] Tab {.tabset}
@@ -214,7 +267,7 @@ This module allows you to visualize the expression levels of specific genes acro
 #### Main Panel: Outputs
 
 *   **Plot**: Displays the gene expression plot.
-*   **Download plot (.pdf)**: Download the current plot.
+*   **Download plot (.pptx)**: Download the current plot.
 
 
 ### Differential Expression
@@ -273,7 +326,7 @@ This module performs trajectory inference using **Slingshot** to model the biolo
 
 #### Main Panel
 * **Trajectory Plot**: UMAP/TSNE plot with the inferred lineage curve overlaid.
-* **Pseudotime Download**: Export the calculated pseudotime values for each cell as a CSV.
+* **Pseudotime Download**: Export the calculated pseudotime values for each cell as an Excel (.xlsx) file.
 
 ### Phenotype-Repertoire Correlation
 
@@ -286,13 +339,53 @@ This module explores the relationship between gene expression (phenotype) and cl
 
 ### Cell-Cell Communication (CellChat)
 
-Infers signaling networks between cell clusters and compares networks across clonal expansion states using **CellChat**.
+Infers ligand–receptor signaling networks between cell clusters using **CellChat v2**. Two analysis modes are supported.
 
-*Note: This feature is included in the official Docker image (v1.0.0+).*
+#### Sidebar Panel: Controls
+
+1.  **Analysis Mode**:
+    *   **Single Condition**: Run CellChat on the entire dataset.
+    *   **Compare Two Conditions**: Run CellChat independently on each of two user-selected conditions and merge the results via `liftCellChat` and `mergeCellChat` for direct comparison.
+2.  **Cell Annotation**: Choose the metadata column used as cell labels (e.g., `seurat_clusters`). To avoid CellChat's restriction on labels containing the digit `0`, the application automatically prefixes numeric labels with `Cluster ` (e.g., `Cluster 0`, `Cluster 7`).
+3.  **Condition Column / Condition A / Condition B** (Compare mode only): Select the metadata column and the two condition values to compare (e.g., `sample = HCW_baseline` vs. `HCW_convalescent`).
+4.  **Signaling Database**: Select the CellChatDB subset (`Secreted Signaling`, `ECM-Receptor`, `Cell-Cell Contact`, or `All`).
+5.  **Plot Type**: Switches the main panel output:
+    *   **Single Condition mode**: Circle plot, signaling strength heatmap, ligand-receptor bubble plot.
+    *   **Compare mode**: `Pathway Strength Comparison` (rankNet), `Differential Interaction Network`, `Circle Plot (per condition)`, `Bubble Plot (per condition)` with selectable source/target clusters.
+6.  **Run CellChat Inference**: This button starts the analysis (typically 5–10 minutes). Down-sampling is applied automatically (10,000 cells per single condition / 7,500 cells per condition in compare mode) to keep memory usage manageable.
+
+#### Main Panel: Outputs
+
+* Plots (circle / heatmap / bubble / rankNet) corresponding to the selected `Plot Type`.
+* `Download plot (.pptx)`: Editable PowerPoint vector graphic.
+
+*Note: CellChat is included in the official Docker image (v1.0.0+).*
 
 ### Multimodal Integration (CoNGA)
 
-Integrated analysis of TCR/BCR sequences and gene expression using the **CoNGA** (Clonotype Neighbor Graph Analysis) framework. Identify clusters based on both transcriptomic and repertoire similarity.
+Identifies cells whose neighborhoods are similar in **both** transcriptomic and TCR/BCR sequence space, using a CoNGA-inspired (Clonotype Neighbor Graph Analysis) approach implemented entirely in R.
+
+* The TCR/BCR sequence k-NN graph is built using **Levenshtein distance** between paired CDR3 sequences (`stringdist`).
+* The transcriptomic k-NN graph is built from **PCA embeddings** (`RANN::nn2`).
+* The CoNGA score for each cell is the **number of shared neighbors** across the two graphs.
+
+#### Sidebar Panel: Controls
+
+1.  **VDJ Type**: TCR or BCR.
+2.  **K (Number of Neighbors)**: Size of the k-NN graphs (default 15).
+3.  **Score Threshold**: Cells with CoNGA score above this value are highlighted in the right panel as "receptor-driven" cells.
+4.  **Run CoNGA Analysis**: Starts the computation.
+
+#### Main Panel: Outputs
+
+A **dual-panel UMAP** visualization:
+
+* **Left panel — `CoNGA Score Projection`**: Continuous color gradient of the CoNGA score across all cells.
+* **Right panel — `Receptor-Driven Cells (Score ≥ N)`**: Cells exceeding the user-defined threshold are colored by Seurat cluster identity; remaining cells appear grey, making it easy to identify which clusters contain coordinated sequence–phenotype similarity.
+
+`Download plot (.pptx)` exports the combined dual-panel figure as an editable PowerPoint slide.
+
+*Note: This module's sensitivity is highest when applied to homogeneous immune compartments (e.g., sorted CD8+ T cells). Applied to heterogeneous PBMC mixtures, scores are typically broadly low because PCA embeddings are dominated by inter-lineage variance.*
 
 ### Automated Cell Type Annotation (LLM)
 
@@ -335,8 +428,8 @@ This tab serves as the primary data browser for your repertoire. It provides a c
     * **Chain 2 (TRB or IGL/K) Details**: V, D (if applicable), J, and C genes.
     * **Full Sequences**: All framework (FWR) and complementarity-determining regions (CDR) for both nucleotide and amino acid sequences of each chain.
 
-* **Download table (.csv)**:
-    Click this button to download the complete data table (respecting the "TCR" or "BCR" selection) as a CSV file for further analysis.
+* **Download table (.xlsx)**:
+    Click this button to download the complete data table (respecting the "TCR" or "BCR" selection) as an Excel (.xlsx) file for further analysis.
 
 ### Frequency Analysis
 
@@ -384,10 +477,10 @@ The options here change based on your "Analysis Target" selection.
 
 * **Plot**:
     Displays the configured bar chart or heatmap.
-    * `Download plot (.pdf)`: Click to download the visualization as a publication-ready PDF.
+    * `Download plot (.pptx)`: Click to download the visualization as a publication-ready editable PowerPoint slide.
 * **Table**:
     Shows the summary data table used to generate the plot, with exact counts and percentages.
-    * `Download table (.csv)`: Click to download this summary data as a CSV file.
+    * `Download table (.xlsx)`: Click to download this summary data as an Excel (.xlsx) file.
 
 ### Unique Clones
 
@@ -408,7 +501,7 @@ It generates a bar chart showing the total count (or proportion) of unique clono
 
 * **Plot**:
     A bar chart where each bar represents a group (from your "Group by" selection). The height of the bar shows either the total count or the proportion of unique clonotypes, based on your "Value Type" selection.
-    * `Download plot (.pdf)`: Downloads the bar chart as a publication-ready PDF.
+    * `Download plot (.pptx)`: Downloads the bar chart as a publication-ready editable PowerPoint slide.
 
 * **Table**:
     An interactive data table showing the summary data used to generate the plot. It includes:
@@ -416,7 +509,7 @@ It generates a bar chart showing the total count (or proportion) of unique clono
     * `unique_clonotype_count`: The absolute number of unique clonotypes.
     * `total_clonotype_count`: The total number of cells (barcodes) in that group.
     * `proportion_unique`: The calculated percentage (unique / total).
-    * `Download table (.csv)`: Downloads this summary table as a CSV file.
+    * `Download table (.xlsx)`: Downloads this summary table as an Excel (.xlsx) file.
 
 ### Clonal Abundance
 
@@ -439,7 +532,7 @@ This module visualizes the **clonal abundance distribution** for each group. It 
     * **X-axis**: Shows the rank of the clonotypes within each group (log scale), ordered from most abundant (rank 1) to least abundant.
     * **Y-axis**: Shows the abundance of the clonotype at that rank, either as a percentage or count, based on your selection.
     * **Color**: Each line represents a different group defined by your "Group by" selection.
-    * `Download plot (.pdf)`: Downloads the rank-abundance plot as a publication-ready PDF.
+    * `Download plot (.pptx)`: Downloads the rank-abundance plot as a publication-ready editable PowerPoint slide.
 * **Table**:
     An interactive data table showing the data used for the plot. It includes:
     * The grouping column (e.g., `sample`).
@@ -447,7 +540,7 @@ This module visualizes the **clonal abundance distribution** for each group. It 
     * `count`: The raw number of cells for that clonotype in that group.
     * `proportion`: The calculated proportion of that clonotype within its group.
     * `rank`: The rank of that clonotype within its group based on abundance.
-    * `Download table (.csv)`: Downloads this summary data as a CSV file.
+    * `Download table (.xlsx)`: Downloads this summary data as an Excel (.xlsx) file.
 
 ### Clonal Length
 
@@ -475,10 +568,10 @@ This module analyzes the length distribution of specific repertoire sequences, m
 
 * **Plot**:
     Displays the configured bar chart or boxplot showing the length distributions.
-    * `Download plot (.pdf)`: Click to download the visualization as a publication-ready PDF.
+    * `Download plot (.pptx)`: Click to download the visualization as a publication-ready editable PowerPoint slide.
 * **Table**:
     An interactive data table showing the summary data used to generate the bar charts. It lists each group, each observed sequence length, the raw count, and the calculated percentage. (Note: The boxplot uses the non-summarized raw length data).
-    * `Download table (.csv)`: Click to download this summary data as a CSV file.
+    * `Download table (.xlsx)`: Click to download this summary data as an Excel (.xlsx) file.
 
 ### Track Clonotype
 
@@ -509,10 +602,10 @@ This module can generate two types of visualizations: a **Stacked Bar** chart or
     Displays the Stacked Bar or Alluvial plot.
     * **Stacked Bar**: Useful for seeing the relative contribution of each tracked clone to each group.
     * **Alluvial Plot**: Useful for seeing the "flow" and proportional changes of specific clones as they move between groups.
-    * `Download plot (.pdf)`: Downloads the visualization as a publication-ready PDF.
+    * `Download plot (.pptx)`: Downloads the visualization as a publication-ready editable PowerPoint slide.
 * **Tracking Results Table**:
     An interactive data table showing the raw data for the plot. It lists each tracked clonotype, each group, its raw count (`n`), the total cells in that group (`total_n`), and its calculated frequency (`frequency`).
-    * `Download table (.csv)`: Downloads this summary data as a CSV file.
+    * `Download table (.xlsx)`: Downloads this summary data as an Excel (.xlsx) file.
 
 ### Clonal Overlap
 
@@ -536,7 +629,7 @@ This module is used to compare the similarity between the repertoires of differe
         `(Number of shared clonotypes) / (Size of the smaller repertoire)`
     * A value of **1.0** (darkest color) means 100% overlap. The diagonal will always be 1.0, as a group perfectly overlaps with itself.
     * A value of **0.0** (lightest color) means the two groups share no clonotypes.
-    * `Download plot (.pdf)`: Click to download the heatmap as a publication-ready PDF.
+    * `Download plot (.pptx)`: Click to download the heatmap as a publication-ready editable PowerPoint slide.
 * **Table**:
     An interactive data table showing the raw matrix of overlap coefficients used to generate the plot.
     * The rows and columns represent the groups, and the cells contain the calculated overlap values (rounded to 3 decimal places).
@@ -583,4 +676,6 @@ Constructs phylogenetic lineage trees for BCR clones to visualize somatic hyperm
 
 ### BCR SHM & Isotype
 
-Provides a combined view of BCR somatic hypermutation (SHM) rates and isotype usage across different cell clusters or samples.
+Provides a combined view of BCR somatic hypermutation (SHM) rates and isotype usage across different cell clusters or samples.
+
+*Note: This module is **temporarily hidden** in v1.0.0 due to column-structure issues in the underlying `combineBCR` output. The implementation remains in the source code (`app/module/4_14_shmIsotype.R`) and will be re-enabled in a future release once the column naming is stabilized.*

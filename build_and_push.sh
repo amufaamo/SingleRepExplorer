@@ -54,13 +54,17 @@ done
 # --- バージョン解決 ---
 if [ -z "$VERSION" ]; then
     echo "No version specified. Trying to extract from app/app.R..."
-    VERSION=$(grep 'title = "SingleRepExplorer v' app/app.R \
-        | sed -n 's/.*SingleRepExplorer \([vV][0-9]*\.[0-9]*\.[0-9]*\):.*/\1/p' \
+    # Match either tags$title("SingleRepExplorer vX.Y.Z ...") or
+    # title = "SingleRepExplorer vX.Y.Z ..." styles.
+    VERSION=$(grep -E 'SingleRepExplorer v[0-9]+\.[0-9]+\.[0-9]+' app/app.R \
+        | sed -nE 's/.*SingleRepExplorer (v[0-9]+\.[0-9]+\.[0-9]+).*/\1/p' \
         | head -1)
 
     if [ -z "$VERSION" ]; then
         echo "Warning: Could not extract version automatically."
         read -rp "Please enter the version manually (e.g., v1.0.0): " VERSION
+    else
+        echo "Detected version: $VERSION"
     fi
 fi
 
@@ -71,8 +75,8 @@ fi
 echo ""
 echo "=============================================="
 echo "  Image : ${IMAGE_NAME}:${VERSION}"
-PUSH_LATEST && echo "  Also  : ${IMAGE_NAME}:latest"
-DO_PUSH     && echo "  Action: build + push" || echo "  Action: build only (no push)"
+$PUSH_LATEST && echo "  Also  : ${IMAGE_NAME}:latest"
+$DO_PUSH     && echo "  Action: build + push" || echo "  Action: build only (no push)"
 echo "=============================================="
 read -rp "Proceed? (y/N): " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
