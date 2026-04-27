@@ -1,13 +1,11 @@
-# Phylogenetic Tree Analysis Module for BCR Data
-# Uses 'dowser' and 'ggtree' for lineage tree construction and visualization
+# Phylogenetic Tree Analysis Module
 
-library(shiny)
-library(ggtree)
-library(dowser)
-library(dplyr)
-library(readr)
-library(ggplot2)
-library(tibble)
+# Optional heavy packages — check availability at runtime
+# NOTE: dowser dependency removed (2026-04-08); tree built directly via msa + ape + phangorn
+.phylo_pkgs_ok <- requireNamespace("ggtree", quietly = TRUE) &&
+                  requireNamespace("msa", quietly = TRUE) &&
+                  requireNamespace("ape", quietly = TRUE) &&
+                  requireNamespace("phangorn", quietly = TRUE)
 
 # --- UI Definition ---
 phylogeneticTreeUI <- function(id) {
@@ -24,14 +22,21 @@ phylogeneticTreeUI <- function(id) {
       selectInput(ns("label_by"), "Label Tips By:", choices = c("barcode", "exact_subclonotype_id", "BCR_pair_CTaa"), selected = "barcode"),
       sliderInput(ns("label_size"), "Label Size:", min = 0, max = 10, value = 3, step = 0.5),
       sliderInput(ns("label_offset"), "Label Offset:", min = 0, max = 0.5, value = 0.05, step = 0.01),
+      numericInput(ns("tip_size"), "Tip Point Size", value = 3, min = 0.5, max = 10, step = 0.5),
+      numericInput(ns("tree_line_width"), "Tree Line Width", value = 0.8, min = 0.1, max = 5, step = 0.1),
       hr(),
-      downloadButton(ns("download_plot"), "Download Tree (PDF)")
+      commonPlotOptions(ns, legend_selected = "right", width_value = 700, height_value = 600),
+      hr(),
+      # downloadButton moved to mainPanel
     ),
     mainPanel(
       tabsetPanel(
         tabPanel("Phylogenetic Tree", 
                  br(),
                  textOutput(ns("plot_info")),
+                 br(),
+                 downloadButton(ns("download_plot"), "Download Tree (.pptx)"),
+                 br(), br(),
                  plotOutput(ns("plot"), width = "100%", height = "auto")
         ),
         tabPanel("Clone Data", 
@@ -49,26 +54,45 @@ phylogeneticTreeServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Early warning if packages are not installed
+    if (!.phylo_pkgs_ok) {
+      output$plot_info <- renderText({
+        "BCR Lineage Tree requires 'ggtree', 'msa', 'ape', and 'phangorn' packages. Please install them and restart the app."
+      })
+      output$plot <- renderPlot({
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5, label = "Required packages (ggtree/msa/ape/phangorn)\nnot installed. Contact administrator.", size = 6, hjust = 0.5) +
+          theme_void()
+      })
+      return()
+    }
+
     # 1. Update clone choices
     observe({
       req(myReactives$bcr_df)
       df <- myReactives$bcr_df
 
-      # Find clones with multiple subclotypes (suitable for tree)
+      # Allow selection of all clones; enforce sequence count at run time
       clones_summary <- tryCatch({
         df %>%
           dplyr::filter(!is.na(raw_clonotype_id) & raw_clonotype_id != "None") %>%
-          dplyr::group_by(raw_clonotype_id) %>%
-          dplyr::summarise(n_distinct_subclones = dplyr::n_distinct(barcode), .groups = 'drop') %>%
-          dplyr::filter(n_distinct_subclones >= 2) %>%
-          dplyr::pull(raw_clonotype_id) %>%
-          sort()
+          dplyr::count(raw_clonotype_id, name = "n") %>%
+          dplyr::filter(n >= 3) %>%
+          dplyr::arrange(raw_clonotype_id)
       }, error = function(e) {
-        return(character(0))
+        return(tibble::tibble(raw_clonotype_id = character(0), n = integer(0)))
       })
 
-      if (length(clones_summary) > 0) {
-        updateSelectInput(session, "selected_clone", choices = clones_summary, selected = clones_summary[1])
+      if (nrow(clones_summary) > 0) {
+        choice_labels <- paste0(clones_summary$raw_clonotype_id, " (n=", clones_summary$n, ")")
+        choices <- stats::setNames(clones_summary$raw_clonotype_id, choice_labels)
+        current <- isolate(input$selected_clone)
+        selected <- if (!is.null(current) && current %in% clones_summary$raw_clonotype_id) {
+          current
+        } else {
+          clones_summary$raw_clonotype_id[1]
+        }
+        updateSelectInput(session, "selected_clone", choices = choices, selected = selected)
       } else {
         updateSelectInput(session, "selected_clone", choices = c("No suitable clones found" = ""), selected = "")
       }
@@ -79,11 +103,23 @@ phylogeneticTreeServer <- function(id, myReactives) {
       req(myReactives$bcr_df, input$selected_clone, input$selected_clone != "")
       selected_clonotype_id <- input$selected_clone
       df <- myReactives$bcr_df
+      
+      # Extract BCR Heavy chain nucleotide sequence
+      nt_col <- "BCR_IGH_full_length_nt"
+      if (!nt_col %in% names(df)) {
+        seq_col_fallback <- "BCR_pair_CTnt"
+        if (seq_col_fallback %in% names(df)) {
+             df[[nt_col]] <- sapply(strsplit(as.character(df[[seq_col_fallback]]), "_"), function(x) if(length(x) >= 1) x[1] else NA)
+        } else {
+             showNotification("Sequencing nucleotide column not found in database.", type = "error")
+             return(NULL)
+        }
+      }
 
       clone_subset <- df %>%
         dplyr::filter(
           raw_clonotype_id == selected_clonotype_id,
-          !is.na(BCR_IGH_full_length_nt) & BCR_IGH_full_length_nt != "",
+          !is.na(.data[[nt_col]]) & .data[[nt_col]] != "",
           !is.na(barcode) & barcode != ""
         ) %>%
         dplyr::distinct(barcode, .keep_all = TRUE)
@@ -95,78 +131,136 @@ phylogeneticTreeServer <- function(id, myReactives) {
       return(clone_subset)
     })
 
-    # 3. Format for dowser
-    phylotree_input_data <- reactive({
+    # 3. Build phylogenetic tree directly from raw 10x sequences (no dowser/Change-O needed)
+    phylogenetic_tree <- reactive({
       req(selected_clone_data())
       clone_subset <- selected_clone_data()
+      nt_col <- "BCR_IGH_full_length_nt"
 
-      # Filter out columns with all NAs to prevent formatting errors
-      cols_to_keep <- names(clone_subset)[colSums(!is.na(clone_subset)) > 0]
-      clone_subset <- clone_subset[, cols_to_keep]
+      withProgress(message = "Building tree...", value = 0, {
+        tryCatch({
+          # Extract sequences and labels
+          seqs <- as.character(clone_subset[[nt_col]])
+          labels <- as.character(clone_subset$barcode)
+          names(seqs) <- labels
 
-      formatted_data <- tryCatch({
-        dowser::formatClones(
-          clone_subset,
-          clone = "raw_clonotype_id",
-          seq = "BCR_IGH_full_length_nt",
-          id = 'barcode'
-        )
-      }, error = function(e) {
-        showNotification(paste("Formatting error:", e$message), type = "error")
-        NULL
-      })
-      return(formatted_data)
-    })
+          incProgress(0.2, detail = "Aligning sequences...")
 
-    # 4. Build tree
-    phylogenetic_tree <- reactive({
-      req(phylotree_input_data())
-      formatted_clones <- phylotree_input_data()
+          # Multiple sequence alignment via msa (Biostrings DNAStringSet)
+          # ClustalOmega writes temp files to cwd - switch to writable dir
+          dna_ss <- Biostrings::DNAStringSet(seqs)
+          names(dna_ss) <- labels
+          old_wd <- getwd()
+          setwd(tempdir())
+          msa_result <- tryCatch(
+            msa::msa(dna_ss, method = "ClustalOmega"),
+            error = function(e) {
+              message("[PhyloTree] ClustalOmega failed, trying Muscle: ", e$message)
+              msa::msa(dna_ss, method = "Muscle")
+            }
+          )
+          setwd(old_wd)
 
-      withProgress(message = "Building tree...", {
-        tree_list <- tryCatch({
-          dowser::getTrees(formatted_clones, build = "nj")
+          # Convert to ape DNAbin
+          aligned_seqs <- as.character(msa_result)  # named character matrix
+          aligned_mat <- do.call(rbind, strsplit(as.character(Biostrings::unmasked(
+            Biostrings::DNAMultipleAlignment(msa_result))), ""))
+          rownames(aligned_mat) <- labels
+          dnabin <- ape::as.DNAbin(aligned_mat)
+
+          incProgress(0.5, detail = "Computing distances...")
+
+          # Distance matrix and NJ tree
+          d <- ape::dist.dna(dnabin, model = "N", pairwise.deletion = TRUE)
+          # Handle zero-distance: add tiny jitter to prevent NJ collapse
+          d[d == 0] <- 1e-8
+
+          incProgress(0.7, detail = "Building NJ tree...")
+          tree <- ape::nj(d)
+
+          # Root at midpoint for nicer display
+          tree <- tryCatch(phangorn::midpoint(tree), error = function(e) tree)
+
+          # Fix negative edge lengths (NJ + midpoint rooting can produce them)
+          if (any(tree$edge.length < 0)) {
+            tree$edge.length[tree$edge.length < 0] <- 0
+          }
+
+          # Prepare metadata for ggtree %<+% join
+          # ggtree uses column named 'label' as join key (must match tree$tip.label)
+          meta_cols <- intersect(
+            names(clone_subset),
+            c("barcode", "sample", "seurat_clusters", "c_gene",
+              "BCR_pair_c_gene", "exact_subclonotype_id", "BCR_pair_CTaa",
+              "origin", "donor")
+          )
+          meta_df <- clone_subset[, meta_cols, drop = FALSE]
+          # Set 'label' = barcode (= tip labels), then drop 'barcode' to avoid conflicts
+          meta_df$label <- as.character(meta_df$barcode)
+          meta_df$barcode <- NULL
+          # Remove duplicates (ggtree %<+% needs unique labels)
+          meta_df <- meta_df[!duplicated(meta_df$label), ]
+
+          incProgress(1, detail = "Done")
+
+          # Return tree (phylo) + metadata as a list
+          list(tree = tree, meta = meta_df)
         }, error = function(e) {
+          message("[PhyloTree] ERROR: ", e$message)
           showNotification(paste("Tree building error:", e$message), type = "error")
           NULL
         })
       })
-      
-      req(tree_list, length(tree_list) > 0)
-      return(tree_list[[1]]) # Return the first treedata object
     })
 
     # 5. Build plot
     tree_plot_object <- reactive({
       req(phylogenetic_tree())
-      tree_data <- phylogenetic_tree()
+      result <- phylogenetic_tree()
+      tree_data <- result$tree
+      meta_df   <- result$meta
       
       color_col <- input$color_by
       label_col <- input$label_by
       
-      # Tip data check
-      tip_data <- as_tibble(tree_data) %>% dplyr::filter(isTip)
-      
-      p <- ggtree(tree_data) +
-           geom_tree(linewidth = 0.8) +
-           geom_treescale(x = 0, y = -1, fontsize = 3)
+      tip_sz   <- input$tip_size       %||% 3
+      lw       <- input$tree_line_width %||% 0.8
+      leg_pos  <- input$legend          %||% "right"
 
-      if (color_col != "None" && color_col %in% names(tip_data)) {
-        p <- p + geom_tippoint(aes(color = .data[[color_col]]), size = 3)
+      # Build basic tree plot (without %<+% to avoid label duplication bugs)
+      p <- ggtree::ggtree(tree_data) +
+           ggtree::geom_tree(linewidth = lw) +
+           ggtree::geom_treescale(x = 0, y = -1, fontsize = 3)
+
+      # Manually merge metadata into plot data via left_join on 'label'
+      # meta_df has 'label' column = barcode = tip.label
+      plot_data <- p$data
+      # Remove any meta columns that already exist in plot_data (except 'label')
+      meta_cols_to_add <- setdiff(names(meta_df), names(plot_data))
+      if (length(meta_cols_to_add) > 0) {
+        join_df <- meta_df[, c("label", meta_cols_to_add), drop = FALSE]
+        plot_data <- dplyr::left_join(plot_data, join_df, by = "label")
+      }
+      p$data <- plot_data
+
+      if (color_col != "None" && color_col %in% names(p$data)) {
+        p <- p + ggtree::geom_tippoint(aes(color = .data[[color_col]]), size = tip_sz)
       } else {
-        p <- p + geom_tippoint(size = 3, color = "steelblue")
+        p <- p + ggtree::geom_tippoint(size = tip_sz, color = "steelblue")
       }
 
-      if (label_col %in% names(tip_data)) {
-        p <- p + geom_tiplab(aes(label = .data[[label_col]]), 
-                            size = input$label_size, 
-                            offset = input$label_offset, 
-                            align = TRUE)
+      # 'barcode' was renamed to 'label' — map for display
+      display_label_col <- if (label_col == "barcode") "label" else label_col
+      if (display_label_col %in% names(p$data)) {
+        p <- p + ggtree::geom_tiplab(aes(label = .data[[display_label_col]]),
+                                     size   = input$label_size,
+                                     offset = input$label_offset,
+                                     align  = TRUE)
       }
-      
-      p <- p + theme(legend.position = "right") +
+
+      p <- p + theme(legend.position = leg_pos) +
            labs(title = paste("Clonotype:", input$selected_clone)) +
-           xlim_tree(max(p$data$x, na.rm=TRUE) * 1.5)
+           ggtree::xlim_tree(max(p$data$x, na.rm = TRUE) * 1.5)
       
       return(p)
     })
@@ -174,17 +268,21 @@ phylogeneticTreeServer <- function(id, myReactives) {
     # 6. Outputs
     output$plot_info <- renderText({
       req(phylogenetic_tree())
-      tree_obj <- phylogenetic_tree()
-      paste("Tree built for clone:", input$selected_clone, "| Sequences:", Ntip(tree_obj))
+      result <- phylogenetic_tree()
+      n_tips <- ape::Ntip(result$tree)
+      paste("Tree built for clone:", input$selected_clone, "| Sequences:", n_tips)
     })
 
     output$plot <- renderPlot({
       req(tree_plot_object())
       tree_plot_object()
-    }, height = function() {
-      tree_obj <- phylogenetic_tree()
-      if (!is.null(tree_obj)) max(500, Ntip(tree_obj) * 20) else 600
-    })
+    }, width  = reactive(input$plot_width  %||% 700),
+       height = reactive({
+         if (!is.null(input$plot_height) && input$plot_height != 600) return(input$plot_height)
+         result <- phylogenetic_tree()
+         n <- if (!is.null(result)) ape::Ntip(result$tree) else 30
+         max(600, n * 20)
+       }))
 
     output$table <- DT::renderDT({
       req(selected_clone_data())
@@ -192,11 +290,9 @@ phylogeneticTreeServer <- function(id, myReactives) {
     })
 
     output$download_plot <- downloadHandler(
-      filename = function() { paste0("tree_", input$selected_clone, ".pdf") },
+      filename = function() { paste0("tree_", input$selected_clone, ".pptx") },
       content = function(file) {
-        tree_obj <- phylogenetic_tree()
-        h <- if (!is.null(tree_obj)) max(6, Ntip(tree_obj) * 0.3) else 8
-        ggsave(file, plot = tree_plot_object(), width = 10, height = h)
+        save_plot_as_pptx(file, tree_plot_object(), input$plot_width, input$plot_height)
       }
     )
   })

@@ -11,7 +11,9 @@ services:
       - "3838:3838"
     volumes:
       # Mount app directory directly for development (allows live code updates)
-      - ./app:/srv/shiny-server
+      # Comment out the next line for production deployment
+      # FIXME: bind mount disabled due to Docker Desktop error (file exists)
+      # - ./app/:/srv/shiny-server
       # Persistent logs
       - shiny-logs:/var/log/shiny-server
     environment:
@@ -20,9 +22,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8G
+          memory: 16G
         reservations:
-          memory: 4G
+          memory: 8G
 
 volumes:
   shiny-logs:

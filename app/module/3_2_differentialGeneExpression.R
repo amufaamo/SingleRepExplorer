@@ -1,12 +1,4 @@
-library(shiny)
-library(Seurat)
-library(DT)
-library(dplyr)
-library(plotly)
-library(ggplot2)
-library(ggplot2)
-library(shinyjs)
-library(enrichR)
+# Differential Gene Expression Module
 
 
 
@@ -39,6 +31,9 @@ differentialGeneExpressionUI <- function(id) {
       ),
       numericInput(ns("logfc"), "Threshold of Log fold change (default: 0.1)", min = 0, max = 1, value = 0.1, step = 0.01),
       numericInput(ns("minpct"), "Minimum percentage of cells expressing a gene (%) (default: 0.01)", min = 0, max = 1, value = 0.01, step = 0.01),
+      numericInput(ns("max_cells_per_ident"), "Max cells per group (0 = all cells)",
+                   value = 500, min = 0, max = 10000, step = 100),
+      tags$small("⚠ For large datasets (>10k cells), set this to 500–1000 to prevent memory crashes. Statistical power is preserved at 500+.", style = "color: #888;"),
       conditionalPanel(
         condition = "input.analysis_type == 'all'",
         ns = ns,
@@ -53,24 +48,46 @@ differentialGeneExpressionUI <- function(id) {
           selected = "positive"
         ),
       ),
-      actionButton(ns("run"), "Run"),
+      actionButton(ns("run"), "Run Analysis", icon = icon("play"), class = "btn-success", style = "width:100%; margin-bottom:10px;"),
       conditionalPanel(
         condition = "input.analysis_type == 'all' && output.table_markers",
         ns = ns,
         numericInput(ns("num"), label = "Number of markers", value = 10),
         numericInput(ns("p_val_adj_marker"), "Threshold of adjusted p-value (default: 0.05)", min = 0, max = 1, value = 0.05, step = 0.01),
+        hr(),
+        radioButtons(ns("top_marker_plot_type"), "Top Marker Plot Type:", choices = c("Dot Plot" = "dot", "Heatmap" = "heatmap"), selected = "dot"),
+        commonPlotOptions(ns, legend_selected = "right", width_value = 800, height_value = 600),
       ),
       conditionalPanel(
         condition = "input.analysis_type == 'two' && output.table_two",
         ns = ns,
-        textInput(ns("gene_input"), "Highlight Genes (comma separated)", value = ""),
+        selectizeInput(ns("gene_input"),
+          label = "Highlight Genes:",
+          choices = NULL,
+          multiple = TRUE,
+          options = list(
+            placeholder = 'e.g., CD8A, GNLY',
+            create = TRUE,
+            plugins = list('remove_button')
+          )
+        ),
         numericInput(ns("p_val_adj"), "Threshold of adjusted p-value (default: 0.05)", min = 0, max = 1, value = 0.05, step = 0.01),
         numericInput(ns("highlight_size"), "Highlight Size", min = 0.001, max = 10, value = 2),
         numericInput(ns("other_size"), "Other Points Size", min = 0.001, max = 10, value = 1),
         numericInput(ns("point_alpha"), "Point Alpha", min = 0.1, max = 1, value = 0.7, step = 0.1),
-        numericInput(ns("plot_width"), "Width", min = 100, max = 2000, value = 400, step = 100),
-        numericInput(ns("plot_height"), "Height", min = 100, max = 2000, value = 400, step = 100),
+        div(style = "display: flex; gap: 10px;",
+          numericInput(ns("plot_width"), "Width", min = 100, max = 2000, value = 400, step = 100),
+          numericInput(ns("plot_height"), "Height", min = 100, max = 2000, value = 400, step = 100)
+        ),
+        legendPositionInput(ns),
+        numericInput(ns("axis_font_size"), "Axis Label Font Size", value = 12, min = 6, max = 24, step = 1),
+        numericInput(ns("gene_label_size"), "Gene Label Size", value = 3, min = 1, max = 10, step = 0.5),
         hr(),
+        h5("Enrichment Plot Options"),
+        div(style = "display: flex; gap: 10px;",
+          numericInput(ns("enrich_plot_width"), "Width", min = 100, max = 2000, value = 700, step = 100),
+          numericInput(ns("enrich_plot_height"), "Height", min = 100, max = 2000, value = 400, step = 100)
+        ),
         hr(),
         radioButtons(ns("enrich_method"), "Enrichment Method",
                      choices = c("EnrichR (ORA)" = "enrichr", "GSEA (fgsea)" = "gsea"),
@@ -94,32 +111,33 @@ differentialGeneExpressionUI <- function(id) {
         condition = "input.analysis_type == 'all'",
         ns = ns,
         h3("Most Differentially Expressed Features (markers) for Each Group"),
-        downloadButton(ns("download_marker_table"), "Download marker table (.csv)"),
+        downloadButton(ns("download_marker_table"), "Download marker table (.xlsx)"),
         DTOutput(ns("table_markers")),
         hr(),
-        h3("Top Markers Expression (Dot Plot)"),
+        h3("Top Markers Expression"),
         p("Displays the expression of the top markers across all clusters intuitively."),
-        downloadButton(ns("download_dotplot"), "Download Dot Plot (.pdf)"),
-        plotOutput(ns("dotPlot"), height = "500px"),
+        downloadButton(ns("download_dotplot"), "Download Plot (.pptx)"),
+        br(), br(),
+        plotOutput(ns("dotPlot")),
         hr(),
         h3("Differentially Expressed Features across Groups"),
-        downloadButton(ns("download_table_all"), "Download all table (.csv)"),
+        downloadButton(ns("download_table_all"), "Download all table (.xlsx)"),
         DTOutput(ns("table_all")),
       ),
       conditionalPanel(
         condition = "input.analysis_type == 'two'",
         ns = ns,
         h3("Volcano Plot"),
-        downloadButton(ns("download_plot"), "Download Plot (PDF)"),
+        downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
         plotlyOutput(ns("volcanoPlot")),
         hr(),
         h3("Pathway Enrichment Analysis"),
         p("Automated gene pathway enrichment analysis. Choose EnrichR for ORA on top markers, or GSEA to evaluate the entire ranked gene list."),
-        downloadButton(ns("download_enrichment_plot"), "Download Enrichment Plot (.pdf)"),
+        downloadButton(ns("download_enrichment_plot"), "Download Enrichment Plot (.pptx)"),
         plotOutput(ns("enrichmentPlot"), height = "400px"),
         hr(),
         h3("Differentially Expressed Features Between Selected Group(s)"),
-        downloadButton(ns("download_table_two"), "Download all table (.csv)"), # Keep using all
+        downloadButton(ns("download_table_two"), "Download all table (.xlsx)"), # Keep using all
         DTOutput(ns("table_two")),
       ),
       conditionalPanel(
@@ -127,7 +145,7 @@ differentialGeneExpressionUI <- function(id) {
         ns = ns,
         h3("Multi-group Variance (Kruskal-Wallis)"),
         p("Genes that significantly vary across 3 or more clusters (ANOVA-like)."),
-        downloadButton(ns("download_table_multi"), "Download multi table (.csv)"),
+        downloadButton(ns("download_table_multi"), "Download multi table (.xlsx)"),
         DTOutput(ns("table_multi"))
       )
     )
@@ -190,6 +208,8 @@ differentialGeneExpressionServer <- function(id, myReactives) {
       so <- myReactives$seurat_object
       Idents(so) <- input$group_by
 
+      max_cells <- if (isTRUE(input$max_cells_per_ident > 0)) input$max_cells_per_ident else Inf
+
       if (input$analysis_type == "all") {
         withProgress(message = "Calculating...", value = 0, {
           clusters <- unique(Idents(so))
@@ -200,13 +220,13 @@ differentialGeneExpressionServer <- function(id, myReactives) {
             cluster <- clusters[i]
             incProgress(1 / n_clusters, detail = paste("Processing cluster", cluster))
 
-            # Use FindMarkers with only.pos based on input$choice
             markers <- FindMarkers(
               so,
               ident.1 = cluster,
               logfc.threshold = input$logfc,
               min.pct = input$minpct,
-              only.pos = (input$choice == "positive"), # Correct only.pos handling
+              only.pos = (input$choice == "positive"),
+              max.cells.per.ident = max_cells,
               verbose = FALSE
             )
             if (input$choice == "negative") {
@@ -230,7 +250,8 @@ differentialGeneExpressionServer <- function(id, myReactives) {
             ident.1 = input$target_cluster,
             ident.2 = input$reference_cluster,
             logfc.threshold = input$logfc,
-            min.pct = input$minpct
+            min.pct = input$minpct,
+            max.cells.per.ident = max_cells
           )
           myReactives$all_data_two$gene <- rownames(myReactives$all_data_two) # Add gene names
 
@@ -290,6 +311,13 @@ differentialGeneExpressionServer <- function(id, myReactives) {
       )
     })
 
+    # Update gene_input selectize choices when two-group DEG results are ready
+    observeEvent(myReactives$all_data_two, {
+      req(myReactives$all_data_two)
+      gene_choices <- myReactives$all_data_two$gene
+      updateSelectizeInput(session, "gene_input", choices = gene_choices, selected = NULL, server = TRUE)
+    })
+
     # All Data Table (both analysis types)
     output$table_all <- renderDT({
       req(myReactives$all_data_all) # Use all_data
@@ -346,8 +374,8 @@ differentialGeneExpressionServer <- function(id, myReactives) {
     })
     
     output$download_table_multi <- downloadHandler(
-      filename = function() { "multi_varied_genes.csv" },
-      content = function(file) { write.csv(myReactives$all_data_multi, file, row.names = FALSE) }
+      filename = function() { "multi_varied_genes.xlsx" },
+      content = function(file) { openxlsx::write.xlsx(myReactives$all_data_multi, file) }
     )
 
     volcano_plot_data <- reactive({
@@ -359,9 +387,8 @@ differentialGeneExpressionServer <- function(id, myReactives) {
       volcano_data <- filtered_data %>%
         mutate(log_p_value = -log10(p_val_adj))
 
-      highlighted <- if (!is.null(input$gene_input) && nzchar(input$gene_input)) {
-        genes <- strsplit(input$gene_input, ",\\s*")[[1]]
-        tolower(volcano_data$gene) %in% tolower(genes) # Use the gene column
+      highlighted <- if (!is.null(input$gene_input) && length(input$gene_input) > 0) {
+        tolower(volcano_data$gene) %in% tolower(input$gene_input)
       } else {
         rep(FALSE, nrow(volcano_data))
       }
@@ -383,8 +410,8 @@ differentialGeneExpressionServer <- function(id, myReactives) {
         scale_size_identity() +
         geom_text(
           data = subset(volcano_data, highlighted),
-          aes(label = gene), # Use the gene column
-          size = 3,
+          aes(label = gene),
+          size = input$gene_label_size %||% 3,
           vjust = -0.5,
           hjust = -0.1,
           check_overlap = TRUE
@@ -393,8 +420,8 @@ differentialGeneExpressionServer <- function(id, myReactives) {
           x = "Log2 Fold Change",
           y = "-Log10 Adjusted p-value"
         ) +
-        theme_classic() +
-        theme(legend.position = "none")
+        theme_classic(base_size = input$axis_font_size %||% 12) +
+        theme(legend.position = input$legend %||% "none")
 
       return(p)
     })
@@ -418,7 +445,7 @@ differentialGeneExpressionServer <- function(id, myReactives) {
       Idents(so) <- input$group_by
       
       # Extract list of top genes dynamically
-      top_n <- min(input$num, 5) # Cap at 5 per cluster to prevent overcrowding the plot
+      top_n <- min(input$num, if(input$top_marker_plot_type == "heatmap") 10 else 5)
       top_markers <- myReactives$all_data_all %>%
         dplyr::filter(p_val_adj <= input$p_val_adj_marker) %>%
         group_by(cluster) %>%
@@ -428,16 +455,28 @@ differentialGeneExpressionServer <- function(id, myReactives) {
       genes_to_plot <- unique(top_markers$gene)
       req(length(genes_to_plot) > 0)
       
-      p <- Seurat::DotPlot(so, features = genes_to_plot) + 
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=10),
-              axis.text.y = element_text(size=12)) +
-        labs(x = "Top Marker Genes", y = "Groups", title = paste("Top Marker Expression Across", tools::toTitleCase(input$group_by)))
+      if (input$top_marker_plot_type == "heatmap") {
+         tryCatch({
+            so <- ScaleData(so, features = genes_to_plot, verbose = FALSE)
+         }, error = function(e) {})
+         p <- Seurat::DoHeatmap(so, features = genes_to_plot, group.by = input$group_by, size=4) +
+              theme(legend.position = input$legend %||% "right",
+                    text = element_text(size = input$base_font_size %||% 12)) +
+              labs(title = paste("Top Marker Expression Across", tools::toTitleCase(input$group_by)))
+      } else {
+         p <- Seurat::DotPlot(so, features = genes_to_plot) + 
+           theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=10),
+                 axis.text.y = element_text(size=12),
+                 legend.position = input$legend %||% "right",
+                 text = element_text(size = input$base_font_size %||% 12)) +
+           labs(x = "Top Marker Genes", y = "Groups", title = paste("Top Marker Expression Across", tools::toTitleCase(input$group_by)))
+      }
       return(p)
     })
     
     output$dotPlot <- renderPlot({
       dotplot_reactive()
-    })
+    }, width = reactive(input$plot_width %||% 800), height = reactive(input$plot_height %||% 600))
     
     # Automated Pathway Enrichment for 'two' mode
     enrichment_reactive <- reactive({
@@ -522,57 +561,63 @@ differentialGeneExpressionServer <- function(id, myReactives) {
 
     output$enrichmentPlot <- renderPlot({
       enrichment_reactive()
-    })
+    }, width = reactive(input$enrich_plot_width %||% 700), height = reactive(input$enrich_plot_height %||% 400))
 
     output$download_marker_table <- downloadHandler(
       filename = function() {
-        "marker_table.csv"
+        "marker_table.xlsx"
       },
       content = function(file) {
-        write.csv(myReactives$marker_table, file, row.names = FALSE)
+        openxlsx::write.xlsx(myReactives$marker_table, file)
       }
     )
 
     output$download_table_all <- downloadHandler(
       filename = function() {
-        "all_table.csv"
+        "all_table.xlsx"
       },
       content = function(file) {
-        write.csv(myReactives$all_data_all, file, row.names = TRUE) # Use all_data
+        openxlsx::write.xlsx(myReactives$all_data_all, file) # Use all_data
       }
     )
 
     output$download_table_two <- downloadHandler(
       filename = function() {
-        "all_table.csv"
+        "all_table.xlsx"
       },
       content = function(file) {
-        write.csv(myReactives$all_data_two, file, row.names = TRUE) # Use all_data
+        openxlsx::write.xlsx(myReactives$all_data_two, file) # Use all_data
       }
     )
 
-   # PDF Download Handler
+   # PPTX Download Handler
     output$download_plot <- downloadHandler(
       filename = function() {
-        "Volcano_plot.pdf"
+        "Volcano_plot.pptx"
       },
       content = function(file) {
-        ggsave(file, plot = volcano_plot_data(), device = "pdf", width = input$plot_width / 72, height = input$plot_height / 72, units = "in", dpi = 300)
+        save_plot_as_pptx(file, volcano_plot_data(), input$plot_width, input$plot_height)
       }
     )
     
     # Download Handlers for new plots
     output$download_dotplot <- downloadHandler(
-      filename = function() { "Marker_DotPlot.pdf" },
+      filename = function() { paste0("TopMarker_", input$top_marker_plot_type %||% "plot", ".pptx") },
       content = function(file) {
-        ggsave(file, plot = dotplot_reactive(), device = "pdf", width = 14, height = 7, units = "in")
+        if (!is.null(input$top_marker_plot_type) && input$top_marker_plot_type == "heatmap") {
+          save_plot_as_pptx_image(file, dotplot_reactive(), input$plot_width %||% 800, input$plot_height %||% 600)
+        } else {
+          save_plot_as_pptx(file, dotplot_reactive(), input$plot_width %||% 800, input$plot_height %||% 600)
+        }
       }
     )
     
     output$download_enrichment_plot <- downloadHandler(
-      filename = function() { "Pathway_Enrichment_Plot.pdf" },
+      filename = function() { "Pathway_Enrichment_Plot.pptx" },
       content = function(file) {
-        ggsave(file, plot = enrichment_reactive(), device = "pdf", width = 10, height = 6, units = "in")
+        save_plot_as_pptx(file, enrichment_reactive(),
+          input$enrich_plot_width %||% 700,
+          input$enrich_plot_height %||% 400)
       }
     )
 

@@ -53,6 +53,27 @@ csv_to_bcr_pair_dataframe <- function(csv_path,
   }
   pair <- pair_list[[1]]
   
+  # --- 独自拡張: V-identity, C-gene 等の重要情報を生データから復元 ---
+  # combineBCRで消えてしまう可能性があるため、バーコードをキーに結合
+  cols_to_restore <- intersect(c("v_identity", "c_gene"), names(bcr_raw))
+  
+  if (length(cols_to_restore) > 0) {
+    # combineBCR already outputs some of these columns (e.g. c_gene), so remove
+    # them first to prevent .x/.y suffix conflicts in the upcoming left_join.
+    pair <- pair %>% dplyr::select(-dplyr::any_of(cols_to_restore))
+
+    restore_df <- bcr_raw %>%
+      dplyr::filter(chain == "IGH") %>% 
+      dplyr::distinct(barcode, .keep_all = TRUE) %>%
+      dplyr::select(barcode, dplyr::all_of(cols_to_restore))
+    
+    # pair の barcode は prefix がついているので注意
+    pair <- pair %>%
+      dplyr::mutate(temp_barcode = stringr::str_replace_all(barcode, pattern = barcode_prefix, replacement = "")) %>%
+      dplyr::left_join(restore_df, by = c("temp_barcode" = "barcode")) %>%
+      dplyr::select(-temp_barcode)
+  }
+
   pair <- pair %>%
     dplyr::mutate(barcode = stringr::str_replace_all(barcode, pattern = barcode_prefix, replacement = "")) %>%
     dplyr::select(-dplyr::any_of(c("sample", "ID"))) %>%

@@ -1,5 +1,3 @@
-#source("../utils.R")
-source("utils.R")
 # --- UI ---
 # UI部分は、軸スケールのラベルをより分かりやすく変更した以外は、元のままでOKです！
 clonalAbundancePlotUI <- function(id) {
@@ -11,7 +9,7 @@ clonalAbundancePlotUI <- function(id) {
       groupByInput(ns),
 
       # --- このモジュール特有のUI ---
-      h4("Plot Settings"),
+      h4("Plot Options"),
       # ★★★ Y軸の単位を「割合」か「細胞数」か選択するように変更 ★★★
       selectInput(ns("yaxis_unit"), "Y-Axis Unit",
                   choices = c("Percentage" = "proportion", "Count" = "count"),
@@ -21,15 +19,17 @@ clonalAbundancePlotUI <- function(id) {
       uiOutput(ns("filter_groups_ui")),
 
       # --- 流用するUI ---
-      commonPlotOptions(ns)
+      commonPlotOptions(ns),
+      numericInput(ns("line_width"), "Line Width", value = 1, min = 0.1, max = 5, step = 0.1),
+      numericInput(ns("point_size"), "Point Size (0 = off)", value = 0, min = 0, max = 5, step = 0.1)
     ),
     mainPanel(
       # --- 流用するUI ---
       h3("Plot"),
-      downloadButton(ns("download_plot"), "Download plot (.pdf)"),
+      downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
       plotOutput(ns("plot")),
       h3("Table"),
-      downloadButton(ns("download_table"), "Download table (.csv)"),
+      downloadButton(ns("download_table"), "Download Table (.xlsx)"),
       DTOutput(ns("table"))
     )
   )
@@ -52,7 +52,21 @@ clonalAbundancePlotServer <- function(id, myReactives) {
     reactive_df_raw <- reactive({
       req(input$vdj_type, input$group_by)
       df <- if (input$vdj_type == "tcr") myReactives$tcr_df else myReactives$bcr_df
-      req(df, "raw_clonotype_id" %in% names(df), input$group_by %in% names(df))
+      req(df, "raw_clonotype_id" %in% names(df))
+      
+      # group_by 列が df にない場合、Seurat メタデータからバーコードで結合
+      if (!input$group_by %in% names(df) && !is.null(myReactives$seurat_object)) {
+        so_meta <- myReactives$seurat_object@meta.data
+        shiny::validate(shiny::need(input$group_by %in% colnames(so_meta),
+          paste("Column '", input$group_by, "' not found in TCR/BCR data or Seurat metadata.")))
+        so_meta$barcode <- rownames(so_meta)
+        meta_join <- so_meta[, c("barcode", input$group_by), drop = FALSE]
+        df <- dplyr::left_join(df, meta_join, by = "barcode")
+      }
+      
+      shiny::validate(shiny::need(input$group_by %in% names(df),
+        paste("Column '", input$group_by, "' not found. Please select a valid group.")))
+      
       df_filtered <- df %>%
         dplyr::filter(!is.na(.data[[input$group_by]]) & .data[[input$group_by]] != "")
       grouping_var_safe <- input$group_by %||% ""
@@ -114,7 +128,7 @@ clonalAbundancePlotServer <- function(id, myReactives) {
 
       # プロットの基本設定
       p <- ggplot(plot_data, aes(x = rank, y = .data[[input$yaxis_unit]], color = group)) +
-        geom_line(linewidth = 1) +
+        geom_line(linewidth = input$line_width %||% 1) +
         # X軸は対数スケールで固定（ランキングプロットで一般的）
         scale_x_log10() +
         # ラベルとテーマ
@@ -135,6 +149,12 @@ clonalAbundancePlotServer <- function(id, myReactives) {
         p <- p + scale_y_continuous(labels = scales::percent_format(accuracy = 1))
       }
 
+      # Point size > 0 の場合のみ点を追加
+      ps <- input$point_size %||% 0
+      if (ps > 0) {
+        p <- p + geom_point(size = ps)
+      }
+
       return(p)
     })
 
@@ -147,9 +167,9 @@ clonalAbundancePlotServer <- function(id, myReactives) {
     )
 
     output$download_plot <- downloadHandler(
-        filename = function() {"clonal_abundance_rank_plot.pdf"},
+        filename = function() {"clonal_abundance_rank_plot.pptx"},
         content = function(file) {
-            ggsave(file, plot = plot_obj(), width = input$plot_width/72, height = input$plot_height/72, device = "pdf")
+            save_plot_as_pptx(file, plot_obj(), input$plot_width, input$plot_height)
         }
     )
 
@@ -169,11 +189,11 @@ clonalAbundancePlotServer <- function(id, myReactives) {
     })
 
     output$download_table <- downloadHandler(
-        filename = function() {"clonal_abundance_rank_table.csv"},
+        filename = function() {"clonal_abundance_rank_table.xlsx"},
         content = function(file) {
             table_display <- table_for_plot() %>%
                 dplyr::rename(!!input$group_by := group)
-            write.csv(table_display, file, row.names = FALSE)
+            openxlsx::write.xlsx(table_display, file)
         }
     )
   })

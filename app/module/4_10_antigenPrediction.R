@@ -3,11 +3,12 @@ antigenPredictionUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
     sidebarPanel(
-      vdjType(ns),
-      downloadButton(ns("download_table"), "テーブルダウンロード (.csv)")
+      vdjType(ns)
     ),
     mainPanel(
       h4("抗原予測結果テーブル (Antigen Prediction Table - Matched CDR3s)"),
+      downloadButton(ns("download_table"), "Download Table (.xlsx)"),
+      br(), br(),
       DTOutput(ns("table"))
     )
   )
@@ -97,10 +98,10 @@ antigenPredictionServer <- function(id, myReactives) {
     # --- ダウンロードハンドラ (もし必要なら) ---
     output$download_table <- downloadHandler(
       filename = function() {
-        paste0("antigen_prediction_", selected_vdj_type(), "_", Sys.Date(), ".csv")
+        paste0("antigen_prediction_", input$vdj_type, "_", Sys.Date(), ".xlsx")
       },
       content = function(file) {
-        readr::write_csv(antigen_db(), file)
+        openxlsx::write.xlsx(merged_df(), file)
       }
     )
   })

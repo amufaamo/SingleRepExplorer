@@ -26,16 +26,18 @@ clonalProportionUI <- function(id) {
       selectInput(ns("legend_position"), "凡例位置", choices = c("right", "left", "bottom", "top", "none"), selected = "right"),
       sliderInput(ns("plot_width"), "プロット幅", min = 200, max = 2000, value = 700, step = 50),
       sliderInput(ns("plot_height"), "プロット高さ", min = 200, max = 2000, value = 500, step = 50),
-
-      downloadButton(ns("download_plot"), "プロットダウンロード (.pdf)"),
-      downloadButton(ns("download_table"), "テーブルダウンロード (.csv)")
+      xAxisAngleInput(ns),
     ),
     mainPanel(
       width = 9,
-      h4("グループ別クローンサイズ割合 (Clonal Proportion by Size Category)"),
+      h4("Clonal Proportion by Size Category"),
+      downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
+      br(), br(),
       plotOutput(ns("plot")),
       hr(),
       h4("割合データテーブル (Proportion Data Table)"),
+      downloadButton(ns("download_table"), "Download Table (.xlsx)"),
+      br(), br(),
       DTOutput(ns('table'))
     )
   )
@@ -139,7 +141,13 @@ clonalProportionServer <- function(id, myReactives) {
         geom_bar(stat = "identity", position = "stack") +
         labs(x = input$group_by, y = "Percentage (%)") +
         theme_minimal() +
-        theme(legend.position = input$legend_position)
+        theme(
+          legend.position = input$legend_position,
+          axis.text.x = element_text(
+            angle = as.numeric(input$x_axis_angle %||% "0"),
+            hjust = if (as.numeric(input$x_axis_angle %||% "0") > 0) 1 else 0.5
+          )
+        )
     }, width = reactive(input$plot_width), height = reactive(input$plot_height))
 
     output$table <- renderDT({
@@ -148,24 +156,27 @@ clonalProportionServer <- function(id, myReactives) {
     })
 
     output$download_plot <- downloadHandler(
-      filename = function() { "clonal_proportion_plot.pdf" },
+      filename = function() { "clonal_proportion_plot.pptx" },
       content = function(file) {
-        pdf(file, width = input$plot_width / 72, height = input$plot_height / 72)
-        print(
-          ggplot(proportion_data(), aes(x = .data[[input$group_by]], y = percentage, fill = category)) +
+        p <- ggplot(proportion_data(), aes(x = .data[[input$group_by]], y = percentage, fill = category)) +
             geom_bar(stat = "identity", position = "stack") +
             labs(x = input$group_by, y = "Percentage (%)") +
             theme_minimal() +
-            theme(legend.position = input$legend_position)
-        )
-        dev.off()
+            theme(
+              legend.position = input$legend_position,
+              axis.text.x = element_text(
+                angle = as.numeric(input$x_axis_angle %||% "0"),
+                hjust = if (as.numeric(input$x_axis_angle %||% "0") > 0) 1 else 0.5
+              )
+            )
+        save_plot_as_pptx(file, p, input$plot_width, input$plot_height)
       }
     )
 
     output$download_table <- downloadHandler(
-      filename = function() { "clonal_proportion_data.csv" },
+      filename = function() { "clonal_proportion_data.xlsx" },
       content = function(file) {
-        write.csv(proportion_data(), file, row.names = FALSE)
+        openxlsx::write.xlsx(proportion_data(), file)
       }
     )
   })

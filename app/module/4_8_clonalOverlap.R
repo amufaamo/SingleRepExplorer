@@ -1,5 +1,4 @@
-#source("../utils.R")
-source("utils.R")
+# Clonal overlap analysis module
 # --- UI Definition ---
 clonalOverlapUI <- function(id) {
     ns <- NS(id)
@@ -16,23 +15,32 @@ clonalOverlapUI <- function(id) {
                                     "Morisita-Horn Index" = "morisita")),
             numericInput(ns("top_n_clones"), "Top N Clones for Alluvial:", value = 15, min = 5, max = 100),
             hr(),
-            commonPlotOptions(ns) # Common Plot options
+            actionButton(ns("run"), "Run Analysis", icon = icon("play"), class = "btn-primary", style = "width:100%; margin-bottom:10px;"),
+            hr(),
+            commonPlotOptions(ns), # Common Plot options
+            selectInput(ns("heatmap_palette"), "Heatmap Color Palette",
+                        choices = c("Plasma" = "plasma", "Viridis" = "viridis",
+                                    "Magma" = "magma", "Inferno" = "inferno"),
+                        selected = "plasma"),
+            numericInput(ns("heatmap_text_size"), "Cell Text Size", value = 3.5, min = 0, max = 10, step = 0.5)
         ),
         mainPanel(
             tabsetPanel(
               tabPanel("Overlap Heatmap", 
                  br(),
                  h3("Beta Diversity Heatmap"),
-                 downloadButton(ns("download_plot"), "Download plot (.pdf)"),
+                 downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
                  plotOutput(ns("plot"), height = "500px"),
                  hr(),
                  h3("Overlap Matrix"),
+                 downloadButton(ns("download_table"), "Download Table (.xlsx)"),
+                 br(), br(),
                  DTOutput(ns("table"))
               ),
               tabPanel("Alluvial Flow Map",
                  br(),
                  h3("Clonotype Flow across Groups"),
-                 downloadButton(ns("download_alluvial"), "Download Map (.pdf)"),
+                 downloadButton(ns("download_alluvial"), "Download Map (.pptx)"),
                  plotOutput(ns("alluvial_plot"), height = "600px")
               )
             )
@@ -72,15 +80,16 @@ clonalOverlapServer <- function(id, myReactives) {
       update_group_by_select_input(session, myReactives)
     })
 
-        # 2. Clone Identifier Column の選択肢更新
+        # 2. Clone Identifier Column の選択肢更新（タイミング問題修正）
     observe({
       req(input$vdj_type, nzchar(input$vdj_type))
-      df <- reactive_data()
-      req(is.data.frame(df) && nrow(df) > 0)
+
+      vdj_df <- if (input$vdj_type == "tcr") myReactives$tcr_df else myReactives$bcr_df
+      req(!is.null(vdj_df) && nrow(vdj_df) > 0)
 
       possible_choices <- list()
       selected_choice_val <- NULL
-      all_cols <- colnames(df)
+      all_cols <- colnames(vdj_df)
 
       if (input$vdj_type == "tcr") {
           possible_choices <- c(
@@ -93,11 +102,11 @@ clonalOverlapServer <- function(id, myReactives) {
       } else if (input$vdj_type == "bcr") {
            possible_choices <- c(
                "Raw Clonotype ID" = "raw_clonotype_id", "Exact Clonotype ID" = "exact_subclonotype_id",
-               "IGH CDR3 AA" = "BCR_IGH_cdr3", "IGH CDR3 NT" = "BCR_IGH_cdr3_nt",
-               "IGK CDR3 AA" = "BCR_IGK_cdr3", "IGK CDR3 NT" = "BCR_IGK_cdr3_nt",
-               "IGL CDR3 AA" = "BCR_IGL_cdr3", "IGL CDR3 NT" = "BCR_IGL_cdr3_nt"
+               "IGH CDR3 AA" = "BCR_IGH_cdr3_aa", "IGH CDR3 NT" = "BCR_IGH_cdr3_nt",
+               "IGK CDR3 AA" = "BCR_IGK_cdr3_aa", "IGK CDR3 NT" = "BCR_IGK_cdr3_nt",
+               "IGL CDR3 AA" = "BCR_IGL_cdr3_aa", "IGL CDR3 NT" = "BCR_IGL_cdr3_nt"
            )
-           default_selection_order <- c("BCR_IGH_cdr3", "raw_clonotype_id")
+           default_selection_order <- c("BCR_IGH_cdr3_aa", "raw_clonotype_id")
       }
 
       valid_choices_vals <- unname(possible_choices[possible_choices %in% all_cols])
@@ -110,12 +119,12 @@ clonalOverlapServer <- function(id, myReactives) {
           if(is.na(selected_choice_val) || is.null(selected_choice_val)) selected_choice_val <- valid_choices_vals[1]
       }
        updateSelectInput(session, "clone_identifier_column", choices = final_choices, selected = selected_choice_val)
-    }) |> bindEvent(input$vdj_type, reactive_data, ignoreNULL = FALSE, ignoreInit = FALSE)
+    }) |> bindEvent(input$vdj_type, myReactives$tcr_df, myReactives$bcr_df, ignoreNULL = FALSE, ignoreInit = FALSE)
 
 
 
-        # --- ★ リアクティブ: 重複度計算 (修正: shiny::validate, shiny::need) ★ ---
-        overlap_matrix_debug <- reactive({
+        # --- ★ リアクティブ: 重複度計算 (Run ボタンでのみ実行) ★ ---
+        overlap_matrix_debug <- eventReactive(input$run, {
             # データ取得と固定設定
             req(reactive_data())
             df <- reactive_data()
@@ -236,8 +245,8 @@ clonalOverlapServer <- function(id, myReactives) {
             fill_limits <- c(0, 1)
             p <- ggplot(df_plot, aes(x = Group1, y = Group2, fill = Value)) +
                 geom_tile(color = "grey50") +
-                scale_fill_viridis_c(option = "plasma", limits = fill_limits, na.value = "grey80", name = "Overlap") +
-                geom_text(aes(label = round(Value, 2)), color = "white", size = 3.5, na.rm = TRUE, check_overlap = TRUE) +
+                scale_fill_viridis_c(option = input$heatmap_palette %||% "plasma", limits = fill_limits, na.value = "grey80", name = "Overlap") +
+                geom_text(aes(label = round(Value, 2)), color = "white", size = input$heatmap_text_size %||% 3.5, na.rm = TRUE, check_overlap = TRUE) +
                 coord_fixed() +
                 labs(x = NULL, y = NULL, title = paste("Beta Diversity:", tools::toTitleCase(input$overlap_method))) +
 
@@ -268,19 +277,19 @@ clonalOverlapServer <- function(id, myReactives) {
             datatable(display_df, rownames = FALSE, options = list(scrollX = TRUE, pageLength = min(10, nrow(mat))))
         })
 
-        # --- PDFダウンロード機能 ---
+        # --- PPTXダウンロード機能 ---
         output$download_plot <- downloadHandler(
             filename = function() {
-                paste0("clonal_overlap_", input$group_by, "_", input$clone_identifier_column, ".pdf")
+                paste0("clonal_overlap_", input$group_by, "_", input$clone_identifier_column, ".pptx")
             },
             content = function(file) {
                 p <- plot_obj()
                 req(p)
-                ggsave(file, plot = p, width = (input$plot_width %||% 600) / 72, height = (input$plot_height %||% 500) / 72, device = "pdf", dpi = 300)
+                save_plot_as_pptx(file, p, input$plot_width %||% 600, input$plot_height %||% 500)
             }
         )
-        # --- Alluvial Plot ---
-        alluvial_obj <- reactive({
+        # --- Alluvial Plot (Run ボタンでのみ実行) ---
+        alluvial_obj <- eventReactive(input$run, {
             req(reactive_data(), input$group_by, input$clone_identifier_column)
             df <- reactive_data()
             group_col <- input$group_by
@@ -329,11 +338,22 @@ clonalOverlapServer <- function(id, myReactives) {
         })
         
         output$download_alluvial <- downloadHandler(
-            filename = function() { paste0("alluvial_", input$group_by, ".pdf") },
+            filename = function() { paste0("alluvial_", input$group_by, ".pptx") },
             content = function(file) {
-                 ggsave(file, plot = alluvial_obj(), width = 10, height = 7, device = "pdf")
+                 save_plot_as_pptx(file, alluvial_obj(), 10 * 72, 7 * 72)
             }
         )
+        
+        output$download_table <- downloadHandler(
+          filename = function() { paste0("clonal_overlap_matrix_", input$group_by, ".xlsx") },
+          content = function(file) {
+            mat <- overlap_matrix_debug()
+            req(mat)
+            df <- as.data.frame(mat)
+            openxlsx::write.xlsx(df, file, rowNames = TRUE)
+          }
+        )
+
 
     }) # moduleServer 終了
 }

@@ -1,10 +1,4 @@
 # CDR3 Physicochemical Properties Module
-# Analyzes Length, Hydrophobicity, Charge, and Polarity of CDR3 sequences
-
-library(shiny)
-library(ggplot2)
-library(dplyr)
-library(stringr)
 
 # Kyte-Doolittle Hydrophobicity Scale
 kd_scale <- c(A=1.8, R=-4.5, N=-3.5, D=-3.5, C=2.5, Q=-3.5, E=-3.5, G=-0.4, 
@@ -61,13 +55,18 @@ cdr3PropertiesUI <- function(id) {
       groupByInput(ns),
       selectInput(ns("property"), "Property to Visualize:", choices = c("Hydrophobicity (Kyte-Doolittle)", "Net Charge", "Sequence Length")),
       hr(),
-      commonPlotOptions(ns),
       actionButton(ns("run_calc"), "Compute Properties", class = "btn-primary", width = "100%", icon = icon("flask")),
       hr(),
-      downloadButton(ns("download_plot"), "Download Plot")
+      h5("Plot Options"),
+      commonPlotOptions(ns),
+      jitterPointsInput(ns),
+      hr(),
+      # downloadButton moved to mainPanel
     ),
     mainPanel(
       h3("Biochemical Profile Distribution"),
+      downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
+      br(), br(),
       plotOutput(ns("prop_plot"), height = "500px"),
       hr(),
       h4("Summary Statistics"),
@@ -112,25 +111,55 @@ cdr3PropertiesServer <- function(id, myReactives) {
       }
       
       group_col <- input$group_by
+      if (!"barcode" %in% names(df)) {
+        showNotification("Barcode column not found in repertoire data.", type = "error")
+        return(NULL)
+      }
       if (!group_col %in% names(df)) {
-         req(myReactives$seurat_object)
-         if (group_col %in% names(myReactives$seurat_object@meta.data)) {
-            meta <- myReactives$seurat_object@meta.data[, c(group_col), drop=FALSE]
-            meta$barcode <- rownames(meta)
-            df <- df %>% left_join(meta, by="barcode")
-         }
+        so <- myReactives$seurat_object
+        if (!is.null(so) && group_col %in% names(so@meta.data)) {
+          meta_sub <- data.frame(barcode = rownames(so@meta.data),
+                                 stringsAsFactors = FALSE)
+          meta_sub[[group_col]] <- so@meta.data[[group_col]]
+          df <- dplyr::left_join(df, meta_sub, by = "barcode")
+        }
+      }
+      if (!group_col %in% names(df)) {
+        showNotification(paste("Group column", group_col, "not found in repertoire or metadata."), type = "error")
+        return(NULL)
       }
       
-      req(group_col %in% names(df))
-      
       withProgress(message = "Computing structural properties...", {
-        # Unique clonotypes per group to reflect clonal diversity, not expansion skew
-        df_unique <- df %>%
-          filter(!is.na(.data[[seq_col]]), !is.na(.data[[group_col]]), .data[[seq_col]] != "", .data[[seq_col]] != "NA") %>%
-          group_by(.data[[group_col]], raw_clonotype_id) %>%
-          slice(1) %>%
-          ungroup() %>%
-          select(barcode, all_of(group_col), all_of(seq_col))
+        # --- Step 1: filter to valid rows using base R to avoid S4/Rle issues ---
+        keep <- !is.na(df[[seq_col]]) & !is.na(df[[group_col]]) &
+                df[[seq_col]] != "" & df[[seq_col]] != "NA"
+        df_unique <- df[keep, , drop = FALSE]
+
+        # --- Step 2: strip ALL Rle / S4 / list columns to plain base-R vectors ---
+        df_unique <- as.data.frame(lapply(df_unique, function(col) {
+          if (inherits(col, "Rle") || inherits(col, "List")) {
+            vec <- tryCatch(as.vector(col), error = function(e) as.character(col))
+            if (is.list(vec))
+              vapply(vec, function(x) if (length(x) == 0) NA_character_ else as.character(x[[1]]), NA_character_)
+            else vec
+          } else if (is.list(col)) {
+            vapply(col, function(x) if (length(x) == 0) NA_character_ else as.character(x[[1]]), NA_character_)
+          } else {
+            col
+          }
+        }), stringsAsFactors = FALSE)
+
+        # --- Step 3: deduplicate using base R (avoids dplyr re-creating Rle internally) ---
+        if ("raw_clonotype_id" %in% names(df_unique)) {
+          dup_key <- paste(df_unique[[group_col]], df_unique[["raw_clonotype_id"]], sep = "\t")
+          df_unique <- df_unique[!duplicated(dup_key), , drop = FALSE]
+        } else {
+          df_unique <- df_unique[!duplicated(df_unique[["barcode"]]), , drop = FALSE]
+        }
+
+        # --- Step 4: keep only the columns needed ---
+        keep_cols <- intersect(c("barcode", group_col, seq_col), names(df_unique))
+        df_unique <- df_unique[, keep_cols, drop = FALSE]
         
         props <- compute_aa_properties(df_unique[[seq_col]])
         df_unique <- bind_cols(df_unique, props)
@@ -141,7 +170,7 @@ cdr3PropertiesServer <- function(id, myReactives) {
     
     prop_plot_obj <- reactive({
       df <- prop_data()
-      req(df)
+      validate(need(!is.null(df), "No data available. Click 'Compute Properties' after selecting valid inputs."))
       
       group_col <- input$group_by
       y_col <- if(grepl("Hydrophobicity", input$property)) {
@@ -152,21 +181,28 @@ cdr3PropertiesServer <- function(id, myReactives) {
       
       y_label <- if (y_col == "Hydrophobicity") "Mean Kyte-Doolittle Score" else if (y_col == "NetCharge") "Net Charge (pH 7.0)" else "Amino Acid Length"
       
-      ggplot(df, aes(x = .data[[group_col]], y = .data[[y_col]], fill = .data[[group_col]])) +
+      p_cdr3 <- ggplot(df, aes(x = .data[[group_col]], y = .data[[y_col]], fill = .data[[group_col]])) +
         geom_violin(trim = FALSE, alpha = 0.6) +
         geom_boxplot(width = 0.2, fill = "white", color = "black", outlier.shape = NA) +
-        theme_pubr(base_size = 14) +
+        theme_classic(base_size = 14) +
         labs(title = paste("CDR3", input$property, "Distribution"), x = tools::toTitleCase(gsub("_", " ", group_col)), y = y_label) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1, face="bold"), legend.position = input$legend %||% "none")
+        theme(
+          axis.text.x = element_text(angle = as.numeric(input$x_axis_angle %||% "45"), hjust = 1, face = "bold"),
+          legend.position = input$legend %||% "none"
+        )
+      if (isTRUE(input$show_jitter)) {
+        p_cdr3 <- p_cdr3 + geom_jitter(width = 0.2, size = input$jitter_size %||% 0.5, alpha = 0.5, color = "black")
+      }
+      p_cdr3
     })
     
     output$prop_plot <- renderPlot({
       prop_plot_obj()
-    }, res=96, width=reactive(input$plot_width), height=reactive(input$plot_height))
+    }, res=96, width=reactive(input$plot_width %||% 500L), height=reactive(input$plot_height %||% 500L))
     
     output$prop_table <- DT::renderDT({
        df <- prop_data()
-       req(df)
+       validate(need(!is.null(df), "No data available. Click 'Compute Properties' after selecting valid inputs."))
        group_col <- input$group_by
        
        y_col <- if(grepl("Hydrophobicity", input$property)) {
@@ -189,9 +225,14 @@ cdr3PropertiesServer <- function(id, myReactives) {
     })
     
     output$download_plot <- downloadHandler(
-      filename = function() { paste0(input$vdj_type, "_cdr3_", y_col, ".pdf") },
+      filename = function() {
+        y_col_name <- if (grepl("Hydrophobicity", input$property)) "Hydrophobicity"
+                      else if (grepl("Charge", input$property)) "NetCharge"
+                      else "Length"
+        paste0(input$vdj_type, "_cdr3_", y_col_name, "_", Sys.Date(), ".pptx")
+      },
       content = function(file) {
-         ggsave(file, plot=prop_plot_obj(), width = input$plot_width/72, height = input$plot_height/72, device="pdf")
+         save_plot_as_pptx(file, prop_plot_obj(), input$plot_width, input$plot_height)
       }
     )
   })

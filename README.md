@@ -42,9 +42,8 @@ SingleRepExplorer is a web-based interactive tool for **integrated single-cell R
 ## 🐳 Docker Usage
 
 The easiest way to run SingleRepExplorer is using Docker Hub:
-
 ```bash
-docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:v2.0.0
+docker run --rm -p 3838:3838 amufaamo/singlerepexplorer:v1.0.0
 ```
 
 Then open your browser and go to: **http://localhost:3838**

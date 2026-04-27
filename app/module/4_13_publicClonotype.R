@@ -1,8 +1,4 @@
-#source("../utils.R")
-source("utils.R")
-# このモジュールを動作させるには、以下のパッケージが必要です。
-# install.packages("ggvenn")
-# install.packages("DT")
+# Public clonotype analysis module
 
 # --- UI ---
 publicClonotypeUI <- function(id) {
@@ -10,35 +6,35 @@ publicClonotypeUI <- function(id) {
   sidebarLayout(
     sidebarPanel(
       width = 3,
-      # --- 共通UI ---
       vdjType(ns),
+      selectInput(ns("clonotype_col"), "Clonotype Column",
+                  choices = NULL, selected = NULL),
       groupByInput(ns),
 
-      # --- このモジュール特有のUI ---
       h4("Venn Diagram Settings"),
-      # ベン図で比較するグループを選択するUI (2〜4グループ推奨)
       uiOutput(ns("group_selector_ui")),
-      
-      # テーブルに表示する単位を選択
+
       radioButtons(ns("table_unit"), "Table Value Unit",
                    choices = c("Count & Proportion" = "both", "Count" = "count", "Proportion" = "proportion"),
                    selected = "both"),
-
-      # --- 共通UI ---
-      commonPlotOptions(ns)
+      hr(),
+      actionButton(ns("run_venn"), "Run Venn Analysis", class = "btn-primary", width = "100%", icon = icon("play")),
+      hr(),
+      h5("Plot Options"),
+      commonPlotOptions(ns, legend_selected = "right", width_value = 600, height_value = 600),
+      # downloadButton moved to mainPanel
     ),
     mainPanel(
       width = 9,
       h3("Public Clonotypes Venn Diagram"),
-      # ベン図のプロットエリア
+      downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
+      br(), br(),
       plotOutput(ns("venn_plot")),
-      
+
       hr(),
-      
+
       h3("Clonotype Details"),
-      # 解析したい共通部分を選択するUI
       uiOutput(ns("intersection_selector_ui")),
-      # 選択した共通部分のクローン情報を表示するテーブル
       DTOutput(ns("clonotype_table"))
     )
   )
@@ -47,10 +43,25 @@ publicClonotypeUI <- function(id) {
 # --- Server ---
 publicClonotypeServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
-    # 1. 共通のリアクティブ要素 (既存コードから流用)
     observeEvent(myReactives$seurat_object, {
       req(myReactives$seurat_object)
       update_group_by_select_input(session, myReactives)
+    })
+
+    # Dynamically populate clonotype_col based on actual available columns
+    observe({
+      req(input$vdj_type)
+      df <- if (input$vdj_type == "tcr") myReactives$tcr_df else myReactives$bcr_df
+      req(df)
+      prefix <- if (input$vdj_type == "tcr") "TCR_pair_" else "BCR_pair_"
+      candidates <- c("raw_clonotype_id",
+                      paste0(prefix, "CTaa"),
+                      paste0(prefix, "CTgene"),
+                      paste0(prefix, "CTnt"))
+      available <- intersect(candidates, names(df))
+      if (length(available) == 0) available <- names(df)[1]
+      selected <- if ("raw_clonotype_id" %in% available) "raw_clonotype_id" else available[1]
+      updateSelectInput(session, "clonotype_col", choices = available, selected = selected)
     })
 
     observeEvent(myReactives$grouping_updated, {
@@ -61,22 +72,32 @@ publicClonotypeServer <- function(id, myReactives) {
     reactive_df_raw <- reactive({
       req(input$vdj_type, input$group_by)
       df <- if (input$vdj_type == "tcr") myReactives$tcr_df else myReactives$bcr_df
-      req(df, "raw_clonotype_id" %in% names(df), input$group_by %in% names(df))
+      clono_col <- input$clonotype_col %||% "raw_clonotype_id"
+      req(df, clono_col %in% names(df))
+
+      # Join Seurat metadata if group_by column is not in the repertoire df
+      group_col <- input$group_by
+      if (!group_col %in% names(df)) {
+        so <- myReactives$seurat_object
+        if (!is.null(so) && group_col %in% names(so@meta.data) && "barcode" %in% names(df)) {
+          meta_sub <- data.frame(barcode = rownames(so@meta.data), stringsAsFactors = FALSE)
+          meta_sub[[group_col]] <- so@meta.data[[group_col]]
+          df <- dplyr::left_join(df, meta_sub, by = "barcode")
+        }
+      }
+      shiny::validate(shiny::need(group_col %in% names(df),
+        paste("Column", group_col, "not found in repertoire data or Seurat metadata.")))
+
       df_filtered <- df %>%
-        dplyr::filter(!is.na(.data[[input$group_by]]) & .data[[input$group_by]] != "")
-      shiny::validate(shiny::need(nrow(df_filtered) > 0, paste("No data after removing NA/empty from", input$group_by %||% "")))
+        dplyr::filter(!is.na(.data[[group_col]]) & .data[[group_col]] != "")
+      shiny::validate(shiny::need(nrow(df_filtered) > 0, paste("No data after removing NA/empty from", group_col)))
       df_filtered
     })
 
-    # 2. ★★★ このモジュール特有のロジック ★★★
-
-    # UI: ベン図で比較するグループを選択
     output$group_selector_ui <- renderUI({
       df <- reactive_df_raw()
       req(df, input$group_by)
       available_groups <- sort(unique(df[[input$group_by]]))
-      
-      # デフォルトで選択するグループ数を設定 (最大4つまで)
       default_selected <- head(available_groups, 4)
 
       selectizeInput(session$ns("selected_groups"),
@@ -84,51 +105,51 @@ publicClonotypeServer <- function(id, myReactives) {
                      choices = available_groups,
                      selected = default_selected,
                      multiple = TRUE,
-                     options = list(maxItems = 4)) # ベン図が見やすいように最大4つに制限
+                     options = list(maxItems = 4))
     })
 
-    # Reactive: 選択されたグループのクローンIDリストを作成
-    venn_input_list <- reactive({
+    venn_input_list <- eventReactive(input$run_venn, {
       req(reactive_df_raw(), input$selected_groups, length(input$selected_groups) >= 2)
-      
+
       df_venn <- reactive_df_raw() %>%
         dplyr::filter(.data[[input$group_by]] %in% input$selected_groups)
-      
-      # グループごとにユニークなクローンIDのリストを作成
-      split(df_venn$raw_clonotype_id, df_venn[[input$group_by]]) %>%
+
+      clono_col <- input$clonotype_col %||% "raw_clonotype_id"
+      split(df_venn[[clono_col]], df_venn[[input$group_by]]) %>%
         lapply(unique)
     })
 
-    # Plot: ベン図を描画
-    output$venn_plot <- renderPlot({
+    make_venn_plot <- reactive({
       req(venn_input_list())
-      
+      set_name_sz <- input$set_name_size %||% 4
+      txt_sz      <- input$text_size %||% 5
+
       ggvenn::ggvenn(
         venn_input_list(),
-        fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
+        fill_color  = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
         stroke_size = 0.5,
-        set_name_size = 4,
-        text_size = 5
+        set_name_size = set_name_sz,
+        text_size   = txt_sz
       ) +
       labs(title = paste("Clonotype Overlap between", tools::toTitleCase(gsub("_", " ", input$group_by)))) +
       theme(plot.title = element_text(hjust = 0.5, face = "bold"))
     })
 
-    # Reactive: 全ての共通部分(intersection)を計算
-    intersections <- reactive({
+    output$venn_plot <- renderPlot({
+      make_venn_plot()
+    }, width  = reactive(input$plot_width  %||% 600),
+       height = reactive(input$plot_height %||% 600))
+
+    intersections <- eventReactive(input$run_venn, {
         req(venn_input_list())
         sets <- venn_input_list()
         set_names <- names(sets)
-        
-        # 組み合わせの全パターンを生成 (例: 1, 2, 1&2)
+
         combinations <- unlist(lapply(1:length(sets), function(i) combn(set_names, i, simplify = FALSE)), recursive = FALSE)
-        
+
         intersection_list <- list()
         for (combo in combinations) {
-            # 共通部分のクローンIDを計算
             intersect_clones <- Reduce(intersect, sets[combo])
-            
-            # 他のセットに含まれないクローンIDのみを抽出
             other_sets <- set_names[!set_names %in% combo]
             if (length(other_sets) > 0) {
                 clones_in_others <- unlist(sets[other_sets])
@@ -136,59 +157,53 @@ publicClonotypeServer <- function(id, myReactives) {
             } else {
                 final_clones <- intersect_clones
             }
-            
-            # リストに追加
             combo_name <- paste(combo, collapse = " & ")
-            if(length(final_clones) > 0) {
+            if (length(final_clones) > 0) {
               intersection_list[[combo_name]] <- final_clones
             }
         }
         return(intersection_list)
     })
 
-    # UI: 共通部分を選択するドロップダウンメニュー
     output$intersection_selector_ui <- renderUI({
       req(intersections())
-      
-      # 共通部分のクローン数も表示
       choices_with_counts <- purrr::map2_chr(names(intersections()), intersections(), ~ paste0(.x, " (", length(.y), " clones)"))
-      
       selectInput(session$ns("selected_intersection"),
                   "Select intersection to inspect:",
                   choices = choices_with_counts)
     })
-    
-    # Table: 選択された共通部分のクローンの詳細を表示
+
     output$clonotype_table <- renderDT({
       req(reactive_df_raw(), input$selected_intersection, intersections())
-      
-      # (X clones)という部分を取り除く
       selected_name <- sub(" \\(.*\\)$", "", input$selected_intersection)
-      
-      # 選択された共通部分のクローンIDを取得
       target_clonotypes <- intersections()[[selected_name]]
-      
-      # 元データから、選択されたグループとクローンIDでフィルタリング
+
+      clono_col <- input$clonotype_col %||% "raw_clonotype_id"
       table_data <- reactive_df_raw() %>%
         dplyr::filter(
           .data[[input$group_by]] %in% input$selected_groups,
-          raw_clonotype_id %in% target_clonotypes
+          .data[[clono_col]] %in% target_clonotypes
         ) %>%
-        # グループごと、クローンIDごとに細胞数をカウント
-        dplyr::count(.data[[input$group_by]], raw_clonotype_id, name = "count") %>%
-        # グループごとの総細胞数で割り、割合を計算
+        dplyr::count(.data[[input$group_by]], .data[[clono_col]], name = "count") %>%
         dplyr::group_by(.data[[input$group_by]]) %>%
         dplyr::mutate(proportion = count / sum(count)) %>%
         dplyr::ungroup() %>%
-        # 見やすいように整形
         dplyr::rename(group = .data[[input$group_by]]) %>%
         tidyr::pivot_wider(
-            names_from = group,
+            names_from  = group,
             values_from = c(count, proportion),
-            values_fill = 0 # 存在しない場合は0で埋める
+            values_fill = 0
         )
 
       datatable(table_data, options = list(scrollX = TRUE, pageLength = 10), rownames = FALSE)
     })
+
+    output$download_plot <- downloadHandler(
+      filename = function() { paste0("venn_clonotype_", input$group_by, "_", Sys.Date(), ".pptx") },
+      content = function(file) {
+        p <- make_venn_plot()
+        save_plot_as_pptx(file, p, input$plot_width %||% 600, input$plot_height %||% 600)
+      }
+    )
   })
 }

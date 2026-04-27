@@ -23,18 +23,18 @@ diversityAnalysisUI <- function(id) {
                   selected = NULL),
       groupByInput(ns),
       commonPlotOptions(ns),
+      jitterPointsInput(ns),
     ),
     mainPanel(
-      tabsetPanel(
-        # ★★★ タブのタイトルを汎用的に変更 ★★★
-        tabPanel("Diversity Plot",
-                 downloadButton(ns("downloadPlot"), "Download Plot (.pdf)"),
-                 plotOutput(ns("shannonPlot"))
-        ),
-        tabPanel("Diversity Table",
-                 DTOutput(ns("resultsTable"))
-        )
-      )
+      h3("Diversity Plot"),
+      downloadButton(ns("downloadPlot"), "Download Plot (.pptx)"),
+      br(), br(),
+      plotOutput(ns("shannonPlot")),
+      br(), hr(),
+      h3("Diversity Table"),
+      downloadButton(ns("download_table"), "Download Table (.xlsx)"),
+      br(), br(),
+      DTOutput(ns("resultsTable"))
     )
   )
 }
@@ -71,16 +71,18 @@ diversityAnalysisServer <- function(id, myReactives) {
     }) |> bindCache(input$vdj_type, myReactives$tcr_df, myReactives$bcr_df)
 
     # --- UIの動的更新 ---
-    # (この部分は変更ありません)
+    # データが直接利用可能になった時点でトリガー（タイミング問題を修正）
     observe({
       req(input$vdj_type, nzchar(input$vdj_type))
-      df <- reactive_data()
-      req(is.data.frame(df) && nrow(df) > 0)
-      
+
+      # reactive_data()経由ではなく直接アクセスしてreq()による無音停止を回避
+      vdj_df <- if (input$vdj_type == "tcr") myReactives$tcr_df else myReactives$bcr_df
+      req(!is.null(vdj_df) && nrow(vdj_df) > 0)
+
       possible_choices <- list()
       selected_choice_val <- NULL
-      all_cols <- colnames(df)
-      
+      all_cols <- colnames(vdj_df)
+
       if (input$vdj_type == "tcr") {
         possible_choices <- c(
           "Raw Clonotype ID" = "raw_clonotype_id",
@@ -109,9 +111,9 @@ diversityAnalysisServer <- function(id, myReactives) {
         possible_choices <- c("Select VDJ Type First" = "")
         default_selection_order <- c("")
       }
-      
+
       valid_choices_vals <- unname(possible_choices[possible_choices %in% all_cols])
-      
+
       if(length(valid_choices_vals) == 0){
         final_choices <- c("適切なクローンID列が見つかりません" = "")
         selected_choice_val <- ""
@@ -122,11 +124,11 @@ diversityAnalysisServer <- function(id, myReactives) {
           selected_choice_val <- valid_choices_vals[1]
         }
       }
-      
+
       updateSelectInput(session, "target_gene_column",
                         choices = final_choices,
                         selected = selected_choice_val)
-    }) |> bindEvent(input$vdj_type, reactive_data, ignoreNULL = FALSE, ignoreInit = FALSE)
+    }) |> bindEvent(input$vdj_type, myReactives$tcr_df, myReactives$bcr_df, ignoreNULL = FALSE, ignoreInit = FALSE)
 
     
     # --- リアクティブ: 解析結果の計算 ---
@@ -259,12 +261,11 @@ diversityAnalysisServer <- function(id, myReactives) {
       group_col_name <- res_list$group_col
       index_col_name <- res_list$index_name
 
-      display_df <- res_list$results %>%
-        rename(!!tools::toTitleCase(gsub("_", " ", group_col_name)) := !!sym(group_col_name))
+      display_df <- res_list$results
+      colnames(display_df)[colnames(display_df) == group_col_name] <- tools::toTitleCase(gsub("_", " ", group_col_name))
 
-      datatable(display_df, extensions = 'Buttons',
-                options = list(pageLength = 10, scrollX = TRUE, autoWidth = TRUE,
-                               dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel')),
+      datatable(display_df,
+                options = list(pageLength = 10, scrollX = TRUE, autoWidth = TRUE),
                 rownames = FALSE,
                 caption = paste(index_col_name, "Index (Grouped by", tools::toTitleCase(gsub("_", " ", group_col_name)), ")"))
     })
@@ -287,7 +288,7 @@ diversityAnalysisServer <- function(id, myReactives) {
       # グループ列をファクターに変換してプロットの順序を制御
       plot_data[[group_col]] <- factor(plot_data[[group_col]], levels = unique(plot_data[[group_col]]))
 
-      ggplot(plot_data, aes(x = .data[[group_col]], y = .data[[index_col_name]], fill = .data[[group_col]])) +
+      p_div <- ggplot(plot_data, aes(x = .data[[group_col]], y = .data[[index_col_name]], fill = .data[[group_col]])) +
         geom_bar(stat = "identity", width = 0.8) +
         labs(
           y = paste("Index Score (", index_col_name, ")"),
@@ -295,14 +296,19 @@ diversityAnalysisServer <- function(id, myReactives) {
           title = paste(index_col_name, "Index per", tools::toTitleCase(gsub("_", " ", group_col))),
           fill = tools::toTitleCase(gsub("_", " ", group_col))
         ) +
+        scale_fill_manual(values = get_seurat_colors(myReactives$seurat_object, group_col), drop = FALSE) +
         theme_minimal(base_size = 14) +
         theme(
-          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+          axis.text.x = element_text(angle = as.numeric(input$x_axis_angle %||% "45"), hjust = 1, vjust = 1),
           axis.ticks.x = element_blank(),
           panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           legend.position = input$legend
         )
+      if (isTRUE(input$show_jitter)) {
+        p_div <- p_div + geom_jitter(width = 0.2, size = input$jitter_size %||% 0.5, alpha = 0.7, color = "black")
+      }
+      p_div
     }, 
     res = 96,
     width = reactive(input$plot_width),
@@ -314,31 +320,56 @@ diversityAnalysisServer <- function(id, myReactives) {
       filename = function() {
         res_list <- analysis_results()
         req(res_list)
-        paste0("DiversityPlot_", res_list$index_name, "_by_", res_list$group_col, "_", Sys.Date(), ".pdf")
+        paste0("DiversityPlot_", res_list$index_name, "_by_", res_list$group_col, "_", Sys.Date(), ".pptx")
       },
       content = function(file) {
-        # renderPlot内のコードを再利用してプロットオブジェクトを生成
         res_list <- analysis_results()
         req(res_list, res_list$results)
-        # (renderPlot内のggplotコードをここにコピー＆ペースト)
-        p <- ggplot(res_list$results, aes(x = .data[[res_list$group_col]], y = .data[[res_list$index_name]], fill = .data[[res_list$group_col]])) +
+        
+        group_col <- res_list$group_col
+        index_col_name <- res_list$index_name
+        
+        # プロットオブジェクト生成のロジックを一貫させる
+        plot_data <- res_list$results %>%
+          filter(!is.na(.data[[index_col_name]]) & !is.na(.data[[group_col]]))
+        plot_data[[group_col]] <- factor(plot_data[[group_col]], levels = unique(plot_data[[group_col]]))
+
+        p <- ggplot(plot_data, aes(x = .data[[group_col]], y = .data[[index_col_name]], fill = .data[[group_col]])) +
           geom_bar(stat = "identity", width = 0.8) +
           labs(
-            y = paste("Index Score (", res_list$index_name, ")"),
-            x = tools::toTitleCase(gsub("_", " ", res_list$group_col)),
-            title = paste(res_list$index_name, "Index per", tools::toTitleCase(gsub("_", " ", res_list$group_col))),
-            fill = tools::toTitleCase(gsub("_", " ", res_list$group_col))
+            y = paste("Index Score (", index_col_name, ")"),
+            x = tools::toTitleCase(gsub("_", " ", group_col)),
+            title = paste(index_col_name, "Index per", tools::toTitleCase(gsub("_", " ", group_col))),
+            fill = tools::toTitleCase(gsub("_", " ", group_col))
           ) +
+          scale_fill_manual(values = get_seurat_colors(myReactives$seurat_object, group_col), drop = FALSE) +
           theme_minimal(base_size = 14) +
           theme(
-            axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+            axis.text.x = element_text(angle = as.numeric(input$x_axis_angle %||% "45"), hjust = 1, vjust = 1),
             axis.ticks.x = element_blank(),
             panel.grid.major.x = element_blank(),
             panel.grid.minor.x = element_blank(),
             legend.position = input$legend
           )
+        if (isTRUE(input$show_jitter)) {
+          p <- p + geom_jitter(width = 0.2, size = input$jitter_size %||% 0.5, alpha = 0.7, color = "black")
+        }
         
-        ggsave(file, plot = p, width = input$plot_width / 72, height = input$plot_height / 72, device = "pdf", dpi = 300)
+        save_plot_as_pptx(file, p, input$plot_width, input$plot_height)
+      }
+    )
+    
+    # --- 出力: テーブルダウンロード ---
+    output$download_table <- downloadHandler(
+      filename = function() {
+        res_list <- analysis_results()
+        req(res_list)
+        paste0("DiversityTable_", res_list$index_name, "_by_", res_list$group_col, "_", Sys.Date(), ".xlsx")
+      },
+      content = function(file) {
+        res_list <- analysis_results()
+        req(res_list, res_list$results)
+        openxlsx::write.xlsx(res_list$results, file)
       }
     )
 

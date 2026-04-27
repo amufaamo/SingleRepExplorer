@@ -1,5 +1,3 @@
-#source("../utils.R")
-source("utils.R")
 # --- UI ---
 frequencyPlotUI <- function(id) {
   ns <- NS(id)
@@ -70,10 +68,13 @@ frequencyPlotUI <- function(id) {
     mainPanel(
       # --- 出力部分 (共通) ---
       h3("Plot"),
-      downloadButton(ns("download_plot"), "Download plot (.pdf)"),
+      downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
+      br(), br(),
       plotOutput(ns("plot")),
+      br(), hr(),
       h3("Table"),
-      downloadButton(ns("download_table"), "Download table (.csv)"),
+      downloadButton(ns("download_table"), "Download table (.xlsx)"),
+      br(), br(),
       DTOutput(ns("table"))
     )
   )
@@ -101,7 +102,7 @@ frequencyPlotServer <- function(id, myReactives) {
         
         # 1. 元データのリアクティブ (NAと空文字列を除去)
         reactive_df_raw <- reactive({
-          req(input$vdj_type, input$group_by) # vdj_typeとgroup_byが選択されていることを要求
+          req(input$vdj_type, input$group_by, nzchar(input$group_by))
           df <- NULL
           if (input$vdj_type == "tcr") {
             req(myReactives$tcr_df)
@@ -110,21 +111,40 @@ frequencyPlotServer <- function(id, myReactives) {
             req(myReactives$bcr_df)
             df <- myReactives$bcr_df
           } else {
-            warning(paste("Unexpected vdj_type:", input$vdj_type))
             return(NULL)
           }
-          # 必要な列が存在するか確認
           req(df, "raw_clonotype_id" %in% names(df), nrow(df) > 0)
-          grouping_var_safe <- input$group_by %||% ""
-          shiny::validate(shiny::need(is.character(grouping_var_safe) && grouping_var_safe %in% names(df), paste("Column", shQuote(grouping_var_safe), "not found in the data.")))
+
+          # group_by 列が df にない場合、Seurat メタデータからバーコードで結合
+          if (!input$group_by %in% names(df)) {
+            if (!is.null(myReactives$seurat_object)) {
+              so_meta <- myReactives$seurat_object@meta.data
+              if (input$group_by %in% colnames(so_meta)) {
+                so_meta$barcode <- rownames(so_meta)
+                meta_join <- so_meta[, c("barcode", input$group_by), drop = FALSE]
+                df <- dplyr::left_join(df, meta_join, by = "barcode")
+              }
+            }
+          }
+
+          # group_by 列が存在するか最終確認
+          if (!input$group_by %in% names(df)) {
+            showNotification(
+              paste("Column '", input$group_by, "' not found in TCR/BCR data or Seurat metadata."),
+              type = "warning", duration = 5
+            )
+            return(NULL)
+          }
 
           # group_by 列の NA と空文字列を除外
           df_filtered_na_empty <- df %>%
             dplyr::filter(!is.na(.data[[input$group_by]]) & .data[[input$group_by]] != "")
 
-          # 除外後にデータが残っているか確認
           if (nrow(df_filtered_na_empty) == 0) {
-            showNotification(paste("No data remaining after removing NA/empty values from column:", input$group_by), type = "warning", duration = 5)
+            showNotification(
+              paste("No data remaining after removing NA/empty values from column:", input$group_by),
+              type = "warning", duration = 5
+            )
             return(NULL)
           }
 
@@ -152,20 +172,19 @@ frequencyPlotServer <- function(id, myReactives) {
         # 3. グループフィルタリングUIの生成
         output$filter_groups_ui <- renderUI({
           df <- reactive_df_raw()
-          req(df, input$group_by) # dfがNULLでないこと、group_byが指定されていること
+          req(df, input$group_by)
           grouping_var <- input$group_by
           
           available_groups <- sort(unique(df[[grouping_var]]))
 
-          grouping_var_safe <- if(is.null(grouping_var)) "UNKNOWN" else grouping_var
-          validate(
-            need(length(available_groups) > 0, paste("No available groups found in column:", shQuote(grouping_var_safe), "after removing NA/empty values."))
-          )
+          if (length(available_groups) == 0) {
+            return(p(style="color:orange;", "No available groups found in column: ", grouping_var))
+          }
 
           checkboxGroupInput(session$ns("filter_groups"),
             label = paste("Filter", tools::toTitleCase(gsub("_", " ", grouping_var)), ":"),
             choices = available_groups,
-            selected = available_groups, # 初期状態は全て選択
+            selected = available_groups,
             inline = TRUE
           )
         })
@@ -383,9 +402,9 @@ frequencyPlotServer <- function(id, myReactives) {
                   ggplot2::scale_fill_gradient(low = "white", high = "steelblue", name = fill_label,
                                              labels = if(fill_var == "percentage") scales::percent else waiver(),
                                              guide = guide_colorbar(barwidth = 0.8, barheight = 10)) +
-                  ggplot2::theme_minimal(base_size = 11) +
+                  ggplot2::theme_minimal(base_size = input$base_font_size %||% 11) +
                   ggplot2::theme(
-                      axis.text.x = element_text(angle = 45, hjust = 1, size=9),
+                      axis.text.x = element_text(angle = as.numeric(input$x_axis_angle %||% "45"), hjust = 1, size = 9),
                       axis.text.y = element_text(size = 8),
                       axis.ticks = element_blank(),
                       panel.grid = element_blank(),
@@ -403,9 +422,9 @@ frequencyPlotServer <- function(id, myReactives) {
           if (input$plot_type != "heatmap") {
             p <- p +
               ggplot2::scale_x_discrete(limits = levels(plot_data$raw_clonotype_id)) +
-              ggplot2::theme_classic(base_size = 14) +
+              ggplot2::theme_classic(base_size = input$base_font_size %||% 14) +
               ggplot2::theme(
-                  axis.text.x = ggplot2::element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+                  axis.text.x = ggplot2::element_text(angle = as.numeric(input$x_axis_angle %||% "90"), hjust = 1, vjust = 0.5, size = 10),
                   axis.title = ggplot2::element_text(size = 12),
                   plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5),
               ) +
@@ -428,8 +447,12 @@ frequencyPlotServer <- function(id, myReactives) {
           if (input$plot_type %in% c("stacked", "dodged")) { # Heatmapは独自の色スケールなので除外
               all_groups <- tryCatch(sort(unique(reactive_df_raw()[[grouping_var]])), error = function(e) NULL)
               if (!is.null(all_groups) && length(all_groups) > 0) {
-                  color_palette <- scales::hue_pal()(length(all_groups))
-                  names(color_palette) <- all_groups
+                  color_palette <- get_seurat_colors(myReactives$seurat_object, grouping_var)
+                  if (is.null(color_palette)) {
+                      color_palette <- scales::hue_pal()(length(all_groups))
+                      names(color_palette) <- as.character(all_groups)
+                  }
+                  
                   valid_colors <- color_palette[levels(plot_data$group_col)]
                   if (length(valid_colors) > 0 && !all(is.na(valid_colors))) {
                       p <- p + ggplot2::scale_fill_manual(values = valid_colors, name = fill_label, drop = FALSE)
@@ -444,14 +467,15 @@ frequencyPlotServer <- function(id, myReactives) {
           plot_obj()
         },
           width = reactive(input$plot_width),
-          height = reactive(input$plot_height)
+          height = reactive(input$plot_height),
+          res = 96
         )
 
-        # PDFダウンロードハンドラー
+        # PPTXダウンロードハンドラー
         output$download_plot <- downloadHandler(
-          filename = function() { "clonotype_plot.pdf" },
+          filename = function() { "clonotype_plot.pptx" },
           content = function(file) {
-            ggsave(file, plot = plot_obj(), width = input$plot_width / 72, height = input$plot_height / 72, dpi = 300)
+            save_plot_as_pptx(file, plot_obj(), input$plot_width, input$plot_height)
           }
         )
 
@@ -460,26 +484,28 @@ frequencyPlotServer <- function(id, myReactives) {
           dt_data_full <- tryCatch(
             { table_for_plot() },
             error = function(e) {
+              if (inherits(e, "shiny.silent.error")) return(NULL)
               showNotification(paste("Error generating table data:", e$message), type = "error", duration = 10)
               return(NULL)
             }
           )
-          
-          validate(need(!is.null(dt_data_full), "No data available for the table with current selections."))
+
+          # validate(need()) の代わりに req() を使用（新しい Shiny との互換性のため）
+          req(!is.null(dt_data_full))
           
           dt_data <- dt_data_full %>%
-            dplyr::select(-any_of("total_n"))
+            dplyr::select(-dplyr::any_of("total_n"))
 
           if ("group_col" %in% names(dt_data)) {
             dt_data <- dt_data %>% dplyr::rename(!!input$group_by := group_col)
           }
 
           if (input$display_value == "count") {
-            dt_data <- dt_data %>% dplyr::select(-percentage)
-          } else { # percentage
+            dt_data <- dt_data %>% dplyr::select(-dplyr::any_of("percentage"))
+          } else {
             dt_data <- dt_data %>%
               dplyr::mutate(percentage = scales::percent(percentage, accuracy = 0.1)) %>%
-              dplyr::select(-n)
+              dplyr::select(-dplyr::any_of("n"))
           }
 
           datatable(dt_data,
@@ -490,9 +516,9 @@ frequencyPlotServer <- function(id, myReactives) {
 
         # テーブルダウンロードハンドラー
         output$download_table <- downloadHandler(
-          filename = function() { "clonotype_table.csv" },
+          filename = function() { "clonotype_table.xlsx" },
           content = function(file) {
-            write.csv(table_for_plot(), file, row.names = FALSE)
+            openxlsx::write.xlsx(table_for_plot(), file)
           }
         )
 
@@ -947,27 +973,26 @@ frequencyPlotServer <- function(id, myReactives) {
       },
       # commonPlotOptions からの入力を取得 (%||% でデフォルト値設定)
       width = reactive(input$plot_width %||% 600),
-      height = reactive(input$plot_height %||% 500)
+      height = reactive(input$plot_height %||% 500),
+      res = 96
     )
 
     output$download_plot <- downloadHandler(
       filename = function() {
-        # ファイル名 (変更なし)
-        paste0("gene_usage_", input$target_gene_column, "_", input$plot_type, ".pdf")
+        paste0("gene_usage_", input$target_gene_column, "_", input$plot_type, ".pptx")
       },
       content = function(file) {
-        p <- plot_obj()
-        req(p)
-        # プロットサイズ (変更なし)
-        plot_width_inch <- (input$plot_width %||% 600) / 72
-        plot_height_inch <- (input$plot_height %||% 500) / 72
-        ggsave(file, plot = p, width = plot_width_inch, height = plot_height_inch, device = "pdf", dpi = 300)
+        req(plot_obj())
+        save_plot_as_pptx(file, plot_obj(),
+                         input$plot_width %||% 600,
+                         input$plot_height %||% 500)
       }
     )
 
     # 8. テーブル出力 (★ DT オプション変更の可能性 ★)
     output$table <- renderDT({
       dt_data_full <- tryCatch(table_for_plot(), error = function(e) {
+        if (inherits(e, "shiny.silent.error")) return(NULL)
         showNotification(paste("Error generating table data:", e$message), type = "error", duration = 10)
         return(NULL)
       })

@@ -1,13 +1,6 @@
 # LLM-Based Automated Cell Type Annotation Module
 # Uses OpenAI API to predict cell types from cluster marker genes
 
-library(shiny)
-library(Seurat)
-library(dplyr)
-library(httr)
-library(jsonlite)
-library(DT)
-
 # --- UI Definition ---
 llmAnnotationUI <- function(id) {
   ns <- NS(id)
@@ -16,7 +9,13 @@ llmAnnotationUI <- function(id) {
       h4("LLM Cell Type Annotation"),
       p("Automatically annotate clusters using Large Language Models (OpenAI) based on top marker genes."),
       passwordInput(ns("api_key"), "OpenAI API Key:", value = ""),
+      p(em("Get your API key at ", tags$a("platform.openai.com/api-keys", href = "https://platform.openai.com/api-keys", target = "_blank"))),
       selectInput(ns("model_name"), "Model:", choices = c("gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"), selected = "gpt-4o-mini"),
+      hr(),
+      h5("Biological Context"),
+      selectInput(ns("species"), "Species:", choices = c("Human", "Mouse", "Macaque", "Other"), selected = "Human"),
+      textInput(ns("tissue"), "Tissue / Organ:", value = "PBMC", placeholder = "e.g., Spleen, Liver, Bone Marrow"),
+      selectInput(ns("granularity"), "Granularity:", choices = c("Standard", "Fine-grained / Subtypes"), selected = "Standard"),
       hr(),
       h5("Clustering Input"),
       selectInput(ns("cluster_col"), "Target Cluster Column:", choices = NULL),
@@ -30,6 +29,7 @@ llmAnnotationUI <- function(id) {
     mainPanel(
       card(
         card_header("Annotation Results"),
+        downloadButton(ns("download_table"), "Download Table (.xlsx)"),
         DT::DTOutput(ns("annotation_table"))
       ),
       br(),
@@ -108,7 +108,14 @@ llmAnnotationServer <- function(id, myReactives) {
           prompt_data <- paste0(prompt_data, "- Cluster '", clust, "': ", genes, "\n")
         }
         
-        system_prompt <- "You are an expert single-cell bioinformatician. I will provide you with a list of cell clusters and their top positive marker genes (based on log fold change). Identify the most likely biological cell type for each cluster. Respond strictly in JSON format. The JSON must contain a single key 'annotations' pointing to an array of objects. Each object must have three keys: 'Cluster' (string), 'CellType' (string), and 'Reasoning' (string explaining your choice briefly)."
+        system_prompt <- sprintf(
+          "You are an expert single-cell bioinformatician. I will provide you with a list of cell clusters and their top positive marker genes (based on log fold change). 
+          The sample is from **Species: %s** and **Tissue: %s**. 
+          Identify the most likely biological cell type for each cluster using a **%s** level of granularity. 
+          Respond strictly in JSON format. The JSON must contain a single key 'annotations' pointing to an array of objects. 
+          Each object must have three keys: 'Cluster' (string), 'CellType' (string), and 'Reasoning' (string explaining your choice briefly based on the markers provided).",
+          input$species, input$tissue, input$granularity
+        )
         user_prompt <- paste0("Here are the marker genes per cluster:\n", prompt_data, "\nPlease provide the JSON output.")
         
         incProgress(0.7, detail = paste("Contacting OpenAI API (", input$model_name, ")..."))
@@ -217,5 +224,13 @@ llmAnnotationServer <- function(id, myReactives) {
       log_messages(paste("Applied annotations as new column in metadata:", col_name))
       showNotification(paste("Annotations applied to metadata column:", col_name), type = "message", duration = 8)
     })
+    
+    output$download_table <- downloadHandler(
+      filename = function() { paste0("llm_annotations_", Sys.Date(), ".xlsx") },
+      content = function(file) {
+        req(annotation_results())
+        openxlsx::write.xlsx(annotation_results(), file)
+      }
+    )
   })
 }

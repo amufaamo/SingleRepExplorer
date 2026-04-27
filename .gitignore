@@ -55,3 +55,78 @@ vignettes/*.pdf
 !app/example/
 !app/example/*.csv
 !app/example/*.h5
+
+# ============================================================================
+# Working / scratch files (do not commit)
+# ============================================================================
+
+# Agent / IDE / tooling working dirs
+.agent/
+.claude/
+.cursor/
+.vscode/
+.idea/
+
+# R session backup files (incl. names with spaces)
+.RData*
+*.RData*
+
+# Large input data (10x outputs etc.) — keep example/ exempt above
+/*.h5
+
+# Reference materials saved from browser
+*_files/
+Frontiers*.html
+Frontiers*.pdf
+
+# Paper / submission artifacts (kept locally, not committed)
+# Comment out if you intend to commit any of these.
+ruft.pptx
+ruft_supplement.pptx
+ruft_figure_*.pdf
+ruft_supplementary_figure_*.pdf
+paper_FiI.md
+Ruft_paper_previous.md
+report.md
+next.md
+
+# OS metadata
+.DS_Store
+Thumbs.db
+*.lnk
+
+# Scratch / one-off scripts (do not commit)
+analysis_script.R
+cluster_info.R
+create_lean_rds.R
+deg_script.R
+plot_demo_ui_figs.R
+plot_from_cache.R
+extract_html.py
+fix_paper.py
+make_workflow_fig.py
+
+# Test output / debug images
+test_*.png
+circle_test.png
+feature_plot_*.pptx
+all_table.xlsx
+build_log.txt
+app/restart.txt
+
+# Large local session / data files
+*.qs2
+results/
+
+# Old repo subdirectory (legacy)
+SiCR/
+
+# Local notes / staging files
+suggest.md
+SingleRepExplorer_UserManual.md
+ruft_figure_*.pptx
+ruft_project.md
+Frontiers_in_Immunology_Guidelines.md
+
+# Paper figures source (kept locally for editing, not committed)
+figures/

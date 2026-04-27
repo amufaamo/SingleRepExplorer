@@ -1,12 +1,4 @@
 # Subset and Interactive Cell Selection Module
-# Allows users to select cells on UMAP/TSNE via Lasso and create new subsets
-
-library(shiny)
-library(Seurat)
-library(plotly)
-library(dplyr)
-library(DT)
-library(bslib)
 
 # --- UI Definition ---
 subsetUI <- function(id) {

@@ -1,23 +1,20 @@
-#source("../utils.R")
-source("utils.R")
+# Gene expression analysis module
+
 # UI
 geneExpressionUI <- function(id) {
   ns <- NS(id)
   sidebarLayout(
     sidebarPanel(
-      selectInput(ns("plot_type"), "Plot type", choices = c("Feature plot" = "feature_plot", "Violin plot" = "violin_plot", "Dot plot" = "dot_plot", "Heatmap" = "heatmap"), selected = "feature_plot"),
       selectizeInput(ns("gene"),
         label = "Enter or select gene names:",
-        choices = NULL, # 初期値は空にしておき、サーバー側で更新します
-        multiple = TRUE, # 複数選択を許可
+        choices = NULL,
+        multiple = TRUE,
         options = list(
-          placeholder = 'e.g., CD3E, CD19', # 入力欄のヒント
+          placeholder = 'e.g., CD3E, CD19',
           create = TRUE,
           plugins = list('remove_button')
         )
       ),
-      # ★ Runボタンを削除しました！
-      # actionButton(ns("run_plot"), "Run", icon = icon("play")),
       conditionalPanel(
         condition = sprintf("input['%s'] != 'feature_plot'", ns("plot_type")),
         groupByInput(ns),
@@ -30,121 +27,36 @@ geneExpressionUI <- function(id) {
         condition = sprintf("input['%s'] == 'feature_plot' || input['%s'] == 'violin_plot'", ns("plot_type"), ns("plot_type")),
         pointSizeInput(ns),
       ),
-      # commonPlotOptionsでプロットの幅(plot_width)と高さ(plot_height)のUIが定義されていると仮定します
+      # --- Feature Plot specific ---
+      conditionalPanel(
+        condition = sprintf("input['%s'] == 'feature_plot'", ns("plot_type")),
+        selectInput(ns("feature_col_scale"), "Color Scale",
+                    choices = c("Viridis" = "viridis", "Reds" = "Reds",
+                                "Blues" = "Blues", "Red-Blue (diverging)" = "RdBu"),
+                    selected = "viridis")
+      ),
+      hr(),
       commonPlotOptions(ns),
     ),
     mainPanel(
-      h3('Plot'),
-      downloadButton(ns("download_plot"), "Download plot (.pdf)"),
+      tabsetPanel(id = ns("plot_type"), type = "tabs",
+        tabPanel("Feature plot", value = "feature_plot"),
+        tabPanel("Violin plot", value = "violin_plot"),
+        tabPanel("Dot plot", value = "dot_plot"),
+        tabPanel("Heatmap", value = "heatmap")
+      ),
+      br(),
+      downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
+      br(), br(),
       plotOutput(ns('plot'))
     )
   )
 }
 
-# # Server
-# geneExpressionServer <- function(id, myReactives) {
-#   moduleServer(id, function(input, output, session) {
-
-#     # ---- 1. Seuratオブジェクトが読み込まれたときの初期設定 ----
-#     observeEvent(myReactives$seurat_object, {
-#       myReactives$available_genes <- c()
-#       myReactives$available_genes <- rownames(myReactives$seurat_object[["RNA"]])
-
-#       # `server = TRUE` は、大量の選択肢でもパフォーマンスを維持するための重要なおまじないです！
-#       updateSelectizeInput(
-#         session,
-#         "gene",
-#         choices = myReactives$available_genes,
-#         selected = c('CD3E', 'CD19'), # 初期選択値
-#         server = TRUE # とっても大事！
-#       )
-#       update_group_by_select_input(session, myReactives)
-#     })
-
-#     # ---- 2. Runボタンが押されたら、プロット計算を実行 ----
-#     plot <- eventReactive(input$run_plot, {
-#       # 入力値のバリデーション
-#       req(myReactives$seurat_object, input$gene)
-#       validate(
-#         need(length(input$gene) > 0, "Please enter at least one gene name.")
-#       )
-
-#       # Seuratオブジェクトに存在する有効な遺伝子のみを抽出
-#       valid_genes <- intersect(input$gene, myReactives$available_genes)
-
-#       # 有効な遺伝子がない場合はエラーメッセージを表示
-#       validate(
-#         need(length(valid_genes) > 0,
-#              "No valid genes found. Please check the entered gene names or download the available feature list.")
-#       )
-
-#       # プロットタイプに応じてプロットを生成
-#       tryCatch({
-#         switch(input$plot_type,
-#           "feature_plot" = FeaturePlot(myReactives$seurat_object, features = valid_genes, reduction = input$reduction, pt.size = input$point_size) + theme(legend.position = input$legend),
-#           "violin_plot"  = VlnPlot(myReactives$seurat_object, features = valid_genes, group.by = input$group_by, pt.size = input$point_size) + theme(legend.position = input$legend),
-#           "dot_plot"     = DotPlot(myReactives$seurat_object, features = valid_genes, group.by = input$group_by) + theme(legend.position = input$legend),
-#           "heatmap"      = DoHeatmap(myReactives$seurat_object, features = valid_genes, group.by = input$group_by)
-#         )
-#       }, error = function(e) {
-#         validate(
-#           need(FALSE, paste("An error occurred while generating the plot:", e$message))
-#         )
-#       })
-#     })
-
-
-#     output$plot <- renderPlot({
-#       plot()
-#     })
-
-#     # ---- 3. ダウンロード処理 ----
-#     output$download_plot <- downloadHandler(
-#       filename = function() {
-#         # isolate() を使って、入力が変更されてもファイル名が再計算されないようにする
-#         plot_type <- isolate(input$plot_type)
-#         genes <- isolate(input$gene)
-#         valid_genes <- intersect(genes, myReactives$available_genes)
-
-#         # ファイル名が長くなりすぎないように調整
-#         gene_string <- if(length(valid_genes) > 3) {
-#           paste0(paste(head(valid_genes, 3), collapse="_"), "_etc")
-#         } else {
-#           paste(valid_genes, collapse="_")
-#         }
-
-#         sprintf("%s_%s.pdf", plot_type, gene_string)
-#       },
-#       content = function(file) {
-#         # plot() は eventReactive なので、これを呼び出すとプロットが再生成される
-#         p <- plot()
-#         req(p)
-
-#         # isolateで囲むことで、ダウンロード時にwidth/heightが変更されてもエラーにならないようにする
-#         plot_width <- isolate(input$plot_width %||% 800)
-#         plot_height <- isolate(input$plot_height %||% 600)
-
-#         # ggsaveでPDFとして保存
-#         ggsave(file, plot = p, width = plot_width / 72, height = plot_height / 72, dpi = 300)
-#       }
-#     )
-
-#     output$available_feature <- downloadHandler(
-#       filename = function() {"available_features.txt"},
-#       content = function(file) {
-#         req(myReactives$available_genes)
-#         write.table(sort(myReactives$available_genes), file, row.names = FALSE, col.names = FALSE, quote = FALSE)
-#       }
-#     )
-#   })
-# }
-
-# Server
 # Server
 geneExpressionServer <- function(id, myReactives) {
   moduleServer(id, function(input, output, session) {
 
-    # ---- 1. Seuratオブジェクトが読み込まれたときの初期設定 ----
     observeEvent(myReactives$seurat_object, {
       req(myReactives$seurat_object)
       myReactives$available_genes <- rownames(myReactives$seurat_object[["RNA"]])
@@ -165,31 +77,24 @@ geneExpressionServer <- function(id, myReactives) {
       update_group_by_select_input(session, myReactives)
     })
 
-    # ---- 2. Runボタンなしで、プロットをリアクティブに生成 ----
     plot <- reactive({
-      # 入力値のバリデーション
       req(myReactives$seurat_object, input$gene, myReactives$available_genes)
       shiny::validate(
         shiny::need(length(input$gene) > 0, "Please enter at least one gene name.")
       )
 
-      # Seuratオブジェクトに存在する有効な遺伝子のみを抽出
       valid_genes <- intersect(input$gene, myReactives$available_genes)
 
-      # 有効な遺伝子がない場合はエラーメッセージを表示
       shiny::validate(
         shiny::need(length(valid_genes) > 0,
-             "No valid genes found. Please check the entered gene names or download the available feature list.")
+             "No valid genes found. Please check the entered gene names.")
       )
-      
-      # プロットタイプに応じて、必要な入力値が揃うまで待機
+
       req(
-        # ★ 修正: !is.null() を外して直接評価するように変更
         if (input$plot_type != "feature_plot") input$group_by else TRUE,
         if (input$plot_type == "feature_plot") input$reduction else TRUE
       )
 
-      # Create a local copy to avoid mutating the global object's scale.data extensively
       so <- myReactives$seurat_object
       if (input$plot_type == "heatmap") {
          tryCatch({
@@ -197,13 +102,39 @@ geneExpressionServer <- function(id, myReactives) {
          }, error = function(e) {})
       }
 
-      # プロットタイプに応じてプロットを生成
+      leg_pos   <- input$legend %||% "right"
+      angle     <- as.numeric(input$x_axis_angle %||% "45")
+      hjust_val <- if (angle == 0) 0.5 else 1
+
+      # Feature plot color scale
+      feature_cols <- switch(input$feature_col_scale %||% "viridis",
+        "viridis" = c("#440154", "#31688e", "#35b779", "#fde725"),
+        "Reds"    = c("lightgrey", "red"),
+        "Blues"   = c("lightgrey", "blue"),
+        "RdBu"    = c("blue", "lightgrey", "red"),
+        c("lightgrey", "blue")
+      )
+
+      dot_scale      <- input$dot_scale %||% 6
+      heatmap_lbl_sz <- input$heatmap_label_size %||% 5.5
+
       tryCatch({
         switch(input$plot_type,
-          "feature_plot" = FeaturePlot(myReactives$seurat_object, features = valid_genes, reduction = input$reduction, pt.size = input$point_size) + theme(legend.position = input$legend),
-          "violin_plot"  = VlnPlot(myReactives$seurat_object, features = valid_genes, group.by = input$group_by, pt.size = input$point_size) + theme(legend.position = input$legend),
-          "dot_plot"     = DotPlot(myReactives$seurat_object, features = valid_genes, group.by = input$group_by) + theme(legend.position = input$legend),
-          "heatmap"      = DoHeatmap(so, features = valid_genes, group.by = input$group_by)
+          "feature_plot" = FeaturePlot(myReactives$seurat_object, features = valid_genes,
+                            reduction = input$reduction, pt.size = input$point_size,
+                            cols = feature_cols) +
+                           theme(legend.position = leg_pos),
+          "violin_plot"  = VlnPlot(myReactives$seurat_object, features = valid_genes,
+                            group.by = input$group_by, pt.size = input$point_size) +
+                           theme(legend.position = leg_pos),
+          "dot_plot"     = DotPlot(myReactives$seurat_object, features = valid_genes,
+                            group.by = input$group_by, scale = dot_scale) +
+                           theme(
+                             legend.position = leg_pos,
+                             axis.text.x     = element_text(angle = angle, hjust = hjust_val)
+                           ),
+          "heatmap"      = DoHeatmap(so, features = valid_genes, group.by = input$group_by,
+                            size = heatmap_lbl_sz)
         )
       }, error = function(e) {
         shiny::validate(
@@ -212,40 +143,104 @@ geneExpressionServer <- function(id, myReactives) {
       })
     })
 
-    # ---- 3. プロットのレンダリング（サイズの動的変更に対応） ----
     output$plot <- renderPlot({
       req(plot())
       plot()
-    }, width = reactive(input$plot_width), height = reactive(input$plot_height))
+    }, width = reactive(input$plot_width %||% 700), height = reactive(input$plot_height %||% 500))
 
-    # ---- 4. ダウンロード処理（動的なサイズで保存） ----
     output$download_plot <- downloadHandler(
       filename = function() {
+        message("[GeneExp Download] filename() called")
         plot_type <- isolate(input$plot_type)
         genes <- isolate(input$gene)
-        
+
         req(myReactives$available_genes)
         valid_genes <- intersect(genes, myReactives$available_genes)
 
-        gene_string <- if(length(valid_genes) > 3) {
+        gene_string <- if (length(valid_genes) > 3) {
           paste0(paste(head(valid_genes, 3), collapse="_"), "_etc")
         } else {
           paste(valid_genes, collapse="_")
         }
-        if(gene_string == "") gene_string <- "no_valid_genes"
+        if (gene_string == "") gene_string <- "no_valid_genes"
 
-        sprintf("%s_%s.pdf", plot_type, gene_string)
+        fname <- sprintf("%s_%s.pptx", plot_type, gene_string)
+        message("[GeneExp Download] filename = ", fname)
+        fname
       },
       content = function(file) {
-        p <- plot()
-        req(p)
-
-        # UIで指定された幅と高さを取得
-        plot_width <- req(input$plot_width)
-        plot_height <- req(input$plot_height)
-
-        # ggsaveでPDFとして保存
-        ggsave(file, plot = p, width = plot_width / 72, height = plot_height / 72, dpi = 300)
+        message("[GeneExp Download] content() called, target file = ", file)
+        
+        tryCatch({
+          message("[GeneExp Download] Step 1: Getting plot object...")
+          p <- plot()
+          req(p)
+          message("[GeneExp Download] Step 1 OK: plot object class = ", paste(class(p), collapse=", "))
+          
+          plot_width  <- input$plot_width %||% 500
+          plot_height <- input$plot_height %||% 500
+          message("[GeneExp Download] Step 2: plot_width = ", plot_width, ", plot_height = ", plot_height)
+          
+          width_in  <- plot_width / 72
+          height_in <- plot_height / 72
+          
+          # Step 3: Save as PNG first (this is the safest approach)
+          message("[GeneExp Download] Step 3: Saving as temp PNG...")
+          tmp_img <- tempfile(fileext = ".png")
+          
+          grDevices::png(tmp_img, width = plot_width * 3, height = plot_height * 3, res = 300)
+          tryCatch({
+            print(p)
+          }, finally = {
+            grDevices::dev.off()
+          })
+          
+          message("[GeneExp Download] Step 3 OK: PNG saved, size = ", file.info(tmp_img)$size, " bytes")
+          
+          # Step 4: Create PPTX with embedded image
+          message("[GeneExp Download] Step 4: Creating PPTX...")
+          pptx <- officer::read_pptx()
+          pptx <- officer::add_slide(pptx, layout = "Blank")
+          pptx <- officer::ph_with(
+            pptx,
+            value = officer::external_img(src = tmp_img, width = width_in, height = height_in),
+            location = officer::ph_location(
+              left = 0.5, top = 0.5,
+              width = width_in, height = height_in
+            )
+          )
+          message("[GeneExp Download] Step 4 OK: PPTX object created")
+          
+          # Step 5: Write PPTX to file
+          message("[GeneExp Download] Step 5: Writing PPTX to target file...")
+          print(pptx, target = file)
+          message("[GeneExp Download] Step 5 OK: PPTX written, size = ", file.info(file)$size, " bytes")
+          
+          # Cleanup
+          unlink(tmp_img)
+          message("[GeneExp Download] DONE - download should succeed")
+          
+        }, error = function(e) {
+          message("[GeneExp Download] ERROR: ", conditionMessage(e))
+          message("[GeneExp Download] TRACEBACK: ")
+          message(paste(capture.output(traceback()), collapse = "\n"))
+          
+          # Emergency fallback: write a minimal valid pptx
+          tryCatch({
+            message("[GeneExp Download] Attempting emergency fallback...")
+            pptx <- officer::read_pptx()
+            pptx <- officer::add_slide(pptx, layout = "Blank")
+            pptx <- officer::ph_with(
+              pptx,
+              value = paste("Error generating plot:", conditionMessage(e)),
+              location = officer::ph_location(left = 1, top = 3, width = 8, height = 1)
+            )
+            print(pptx, target = file)
+            message("[GeneExp Download] Emergency fallback PPTX written")
+          }, error = function(e2) {
+            message("[GeneExp Download] EMERGENCY FALLBACK ALSO FAILED: ", conditionMessage(e2))
+          })
+        })
       }
     )
 
@@ -257,24 +252,4 @@ geneExpressionServer <- function(id, myReactives) {
       }
     )
   })
-}
-
-
-# reductionPlotServerから持ってきたヘルパー関数
-# Seuratオブジェクトに存在するリダクション名を取得し、UIの選択肢を動的に更新する
-update_reduction_choices <- function(session, myReactives) {
-  ns <- session$ns
-  req(myReactives$seurat_object)
-
-  # Seuratオブジェクトからリダクション名（'pca', 'umap', 'tsne'など）を取得
-  reduction_names <- names(myReactives$seurat_object@reductions)
-
-  # UIで表示する名前（例: 'umap' -> 'UMAP'）と、サーバー側で使う値（'umap'）のペアを作成
-  choices <- stats::setNames(reduction_names, toupper(reduction_names))
-
-  # デフォルトの選択肢を決定（'umap'があればそれを、なければ最初のものを選択）
-  default_selection <- if ("umap" %in% reduction_names) "umap" else reduction_names[1]
-
-  # selectInputを更新
-  updateSelectInput(session, "reduction", choices = choices, selected = default_selection)
 }

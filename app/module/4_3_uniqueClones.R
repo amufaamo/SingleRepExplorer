@@ -1,5 +1,3 @@
-#source("../utils.R")
-source("utils.R")
 # UI 関数 (変更なしと仮定)
 uniqueClonesUI <- function(id) {
   ns <- NS(id)
@@ -11,14 +9,17 @@ uniqueClonesUI <- function(id) {
       groupByInput(ns),
       valueType(ns),
       # プロットタイプ選択 (必要であれば追加)
-      commonPlotOptions(ns),
+      commonPlotOptions(ns)
     ),
     mainPanel(
-      h3("Plot"),
-      downloadButton(ns("download_plot"), "Download plot (.pdf)"),
-      plotOutput(ns("plot")),
+      h3("Number of Unique Clonotypes Plot"),
+      downloadButton(ns("download_plot"), "Download Plot (.pptx)"),
+      br(), br(),
+      plotOutput(ns("unique_clonotypes_plot")),
+      br(), hr(),
       h3("Table"),
-      downloadButton(ns("download_table"), "Downloadtable (.csv)"),
+      downloadButton(ns("download_table"), "Download table (.xlsx)"),
+      br(), br(),
       DTOutput(ns("table"))
 
     ),
@@ -134,7 +135,9 @@ uniqueClonesServer <- function(id, myReactives) {
       # プロットを構築
       p <- p_base +
         y_mapping + # y軸マッピングを追加
-        geom_bar(stat = "identity") +
+        geom_bar(stat = "identity", color = NA) +
+        # --- scale_fill_manual to sync with Seurat colors ---
+        scale_fill_manual(values = get_seurat_colors(myReactives$seurat_object, input$group_by), drop = FALSE) +
         # --- scale_y_continuous をここで一元管理 ---
         scale_y_continuous(
           labels = y_scale_labels, # value_type に応じたラベル関数
@@ -145,35 +148,40 @@ uniqueClonesServer <- function(id, myReactives) {
         # -----------------------------------------
         labs(y = y_label) + # y軸ラベルを設定
         theme_classic() +
-        theme(legend.position = input$legend)
+        theme(
+          legend.position = input$legend,
+          axis.text.x = element_text(
+            angle = as.numeric(input$x_axis_angle %||% "0"),
+            hjust = if (as.numeric(input$x_axis_angle %||% "0") > 0) 1 else 0.5
+          )
+        )
 
       return(p)
     })
 
     
-    output$plot <- renderPlot(
+    output$unique_clonotypes_plot <- renderPlot(
       {
         plot()
       },
       width = reactive(input$plot_width),
       height = reactive(input$plot_height),
+      res = 96
     )
 
     output$download_plot <- downloadHandler(
-      filename = function() {
-        "plot.pdf"
-      }, # ファイル名を修正
+      filename = function() { "unique_clonotypes_plot.pptx" },
       content = function(file) {
-        ggsave(file, plot = plot(), width = input$plot_width / 72, height = input$plot_height / 72, dpi = 300) # renderCustomPlot() を plot() に修正
+        save_plot_as_pptx(file, plot(), input$plot_width, input$plot_height)
       }
     )
 
   output$download_table <- downloadHandler(
       filename = function() {
-        "table.csv"
+        "table.xlsx"
       },
       content = function(file) {
-        write.csv(summary_data(), file, row.names = FALSE)
+        openxlsx::write.xlsx(summary_data(), file)
       }
     )
 

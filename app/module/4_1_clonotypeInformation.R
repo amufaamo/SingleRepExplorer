@@ -6,8 +6,8 @@ clonotypeInformationUI <- function(id) {
       vdjType(ns),
     ),
     mainPanel(
-      DTOutput(ns("table")),
-      downloadButton(ns("download_table"), "Download table (.csv)") # 追加
+      downloadButton(ns("download_table"), "Download table (.xlsx)"),
+      DTOutput(ns("table"))
     )
   )
 }
@@ -196,10 +196,10 @@ clonotypeInformationServer <- function(id, myReactives) {
     # CSVダウンロードハンドラー
     output$download_table <- downloadHandler(
       filename = function() {
-        "table.csv"
+        "table.xlsx"
       },
       content = function(file) {
-        write.csv(table(), file) # table()で生成したデータをCSVとして保存
+        openxlsx::write.xlsx(table(), file) # table()で生成したデータをエクセルとして保存
       }
     )
   })

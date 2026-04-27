@@ -262,6 +262,51 @@ This module allows you to perform **Differential Gene Expression (DGE)** analysi
     *   **Volcano Plot**: Log-fold change vs. p-value.
     *   **Results Table**: Complete DGE results for the comparison.
 
+### Trajectory & Pseudotime
+
+This module performs trajectory inference using **Slingshot** to model the biological processes (e.g., differentiation or activation) as a path through the single-cell expression space.
+
+#### Sidebar Panel: Controls
+1. **Target Subsets**: Select clusters to include in the trajectory analysis.
+2. **Start Cluster**: Optionally define which cluster represents the "root" of the trajectory.
+3. **Dimensionality Reduction**: Choose UMAP or TSNE for visualization.
+
+#### Main Panel
+* **Trajectory Plot**: UMAP/TSNE plot with the inferred lineage curve overlaid.
+* **Pseudotime Download**: Export the calculated pseudotime values for each cell as a CSV.
+
+### Phenotype-Repertoire Correlation
+
+This module explores the relationship between gene expression (phenotype) and clonal expansion levels.
+
+#### Sidebar Panel: Controls
+1. **Repertoire Data**: Select TCR or BCR.
+2. **Expansion Category**: Set thresholds for "Expanded" vs "Unexpanded" clones.
+3. **Comparison**: Performs DGE between expanded and unexpanded cells.
+
+### Cell-Cell Communication (CellChat)
+
+Infers signaling networks between cell clusters and compares networks across clonal expansion states using **CellChat**.
+
+*Note: This feature is included in the official Docker image (v1.0.0+).*
+
+### Multimodal Integration (CoNGA)
+
+Integrated analysis of TCR/BCR sequences and gene expression using the **CoNGA** (Clonotype Neighbor Graph Analysis) framework. Identify clusters based on both transcriptomic and repertoire similarity.
+
+### Automated Cell Type Annotation (LLM)
+
+Automatically annotate clusters using Large Language Models (OpenAI GPT-4o) based on top marker genes.
+
+#### Sidebar Panel: Controls
+1. **API Key**: Required OpenAI API key.
+2. **Biological Context**: Specify **Species**, **Tissue**, and **Granularity** to improve accuracy.
+3. **Target Cluster Column**: Select the metadata column to annotate.
+
+#### Main Panel
+* **Annotation Results**: Table showing predicted cell types and biological reasoning.
+* **Apply to Seurat**: Adds the predictions as a new metadata column in your object.
+
 ---
 
 ## [Repertoire] Tab {.tabset}
@@ -523,3 +568,19 @@ This module helps identify **"public clonotypes"** – clonotypes that are share
     * **Clonotype Table**: This interactive data table displays detailed information about the clonotypes found **only in the selected intersection**.
         * `raw_clonotype_id`: The identifier of the public clonotype.
         * Subsequent columns show the **abundance** (count and/or proportion, based on your sidebar selection) of that specific clonotype within each of the originally selected groups.
+
+### CDR3 Physicochemical Profiling
+
+Analyzes the physicochemical properties of CDR3 amino acid sequences, such as hydrophobicity, charge, and molecular weight.
+
+### Sequence Similarity
+
+Calculates the sequence similarity (Levenshtein distance) between clonotypes to identify clusters of related sequences that share antigen specificity.
+
+### BCR Lineage Tree
+
+Constructs phylogenetic lineage trees for BCR clones to visualize somatic hypermutation and clonal evolution.
+
+### BCR SHM & Isotype
+
+Provides a combined view of BCR somatic hypermutation (SHM) rates and isotype usage across different cell clusters or samples.
