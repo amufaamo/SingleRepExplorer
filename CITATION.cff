@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use SingleRepExplorer, please cite it as below."
 type: software
 title: "SingleRepExplorer: An Interactive Web Application for Integrated Single-Cell Transcriptomic and Immune Repertoire Analysis"
-version: "1.0.0"
-date-released: "2026-04-27"
+version: "1.0.1"
+date-released: "2026-04-30"
 license: MIT
 repository-code: "https://github.com/amufaamo/SingleRepExplorer"
 url: "https://amufaamo.github.io/SingleRepExplorer/"
