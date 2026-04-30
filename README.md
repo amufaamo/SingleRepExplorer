@@ -1,5 +1,8 @@
 # SingleRepExplorer
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18190984.svg)](https://doi.org/10.5281/zenodo.18190984)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 An interactive visualization tool for single-cell analysis.
 
 ## ⚡ TL;DR (Quick Start)
@@ -79,9 +82,27 @@ This project is released under the [MIT License](LICENSE).
 
 ## 📚 Citation
 
-If you use SingleRepExplorer in your research, please cite it. Citation metadata is provided in [`CITATION.cff`](CITATION.cff); GitHub renders a "Cite this repository" button on the repository page.
+If you use SingleRepExplorer in your research, please cite it via the Zenodo concept DOI, which always resolves to the latest version:
 
-A persistent DOI for each release will be minted on Zenodo once the first GitHub Release is published.
+> Ishikawa, M. (2026). *SingleRepExplorer: An Interactive Web Application for Integrated Single-Cell Transcriptomic and Immune Repertoire Analysis* (Version 1.0.1) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.18190984
+
+BibTeX:
+
+```bibtex
+@software{ishikawa_singlerepexplorer_2026,
+  author       = {Ishikawa, Masakazu},
+  title        = {{SingleRepExplorer: An Interactive Web Application
+                   for Integrated Single-Cell Transcriptomic and
+                   Immune Repertoire Analysis}},
+  year         = 2026,
+  publisher    = {Zenodo},
+  version      = {v1.0.1},
+  doi          = {10.5281/zenodo.18190984},
+  url          = {https://doi.org/10.5281/zenodo.18190984}
+}
+```
+
+Full machine-readable metadata is in [`CITATION.cff`](CITATION.cff); GitHub renders a "Cite this repository" button on the repository page based on it.
 
 ## 🔗 Links
 
