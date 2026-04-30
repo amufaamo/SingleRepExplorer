@@ -75,7 +75,13 @@ SingleRepExplorer/
 
 ## 📝 License
 
-Please refer to the manual for details.
+This project is released under the [MIT License](LICENSE).
+
+## 📚 Citation
+
+If you use SingleRepExplorer in your research, please cite it. Citation metadata is provided in [`CITATION.cff`](CITATION.cff); GitHub renders a "Cite this repository" button on the repository page.
+
+A persistent DOI for each release will be minted on Zenodo once the first GitHub Release is published.
 
 ## 🔗 Links
 

@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use SingleRepExplorer, please cite it as below."
+type: software
+title: "SingleRepExplorer: An Interactive Web Application for Integrated Single-Cell Transcriptomic and Immune Repertoire Analysis"
+version: "1.0.0"
+date-released: "2026-04-27"
+license: MIT
+repository-code: "https://github.com/amufaamo/SingleRepExplorer"
+url: "https://amufaamo.github.io/SingleRepExplorer/"
+authors:
+  - family-names: Ishikawa
+    given-names: Masakazu
+    orcid: "https://orcid.org/0000-0003-3349-6738"
+    affiliation: "Kagawa University, Bioinformatics Analysis Center"
+keywords:
+  - single-cell RNA-seq
+  - immune repertoire
+  - TCR
+  - BCR
+  - scRNA-seq
+  - Shiny
+  - bioinformatics
+  - visualization
+  - no-code
+  - Docker
+abstract: >-
+  SingleRepExplorer is a web-based interactive tool that integrates single-cell
+  RNA-seq transcriptomic analysis with TCR/BCR immune repertoire profiling in a
+  single no-code platform. Built on R Shiny and distributed via Docker, it
+  enables biologists without programming expertise to perform clustering,
+  differential expression, pathway enrichment, trajectory inference, cell-cell
+  communication, and clonotype analyses through an intuitive GUI.
