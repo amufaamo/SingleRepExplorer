@@ -423,10 +423,16 @@ cellCommunicationServer <- function(id, myReactives) {
       # ggplotにfont sizeを適用するヘルパー
       apply_theme <- function(p) {
         p + ggplot2::theme(
-          text         = ggplot2::element_text(size = base_fs),
-          axis.text    = ggplot2::element_text(size = base_fs),
-          legend.text  = ggplot2::element_text(size = base_fs),
-          strip.text   = ggplot2::element_text(size = facet_fs)
+          text          = ggplot2::element_text(size = base_fs),
+          axis.text     = ggplot2::element_text(size = base_fs),
+          legend.text   = ggplot2::element_text(size = base_fs),
+          legend.title  = ggplot2::element_text(size = base_fs),
+          strip.text    = ggplot2::element_text(size = facet_fs),
+          # netVisual_bubble / rankNet leave a grey panel frame; strip it for clean vector export
+          panel.border     = ggplot2::element_blank(),
+          panel.background = ggplot2::element_blank(),
+          plot.background  = ggplot2::element_blank(),
+          panel.grid       = ggplot2::element_blank()
         )
       }
 

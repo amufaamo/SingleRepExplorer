@@ -283,7 +283,7 @@ trackClonotypeServer <- function(id, myReactives) {
             ylab(y_axis_label) +
             ggtitle(paste("Tracking of target clones (Stacked Bar)")) +
             labs(fill = toTitleCase(gsub("_", " ", input$clone_identifier_column))) +
-            theme_bw(base_size = 12) +
+            theme_classic(base_size = 14) +
             theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size=10),
                   legend.position = input$legend_position, plot.title = element_text(hjust = 0.5))
 
@@ -315,7 +315,7 @@ trackClonotypeServer <- function(id, myReactives) {
                  ylab(y_axis_label) +
                  ggtitle(paste("Tracking of target clones (Alluvial Plot)")) +
                  labs(fill = toTitleCase(gsub("_", " ", input$clone_identifier_column))) +
-                 theme_bw(base_size = 12) +
+                 theme_classic(base_size = 14) +
                  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size=10),
                        legend.position = input$legend_position,
                        plot.title = element_text(hjust = 0.5))
@@ -356,7 +356,7 @@ trackClonotypeServer <- function(id, myReactives) {
           ylab(y_axis_label),
           ggtitle(paste("Clonotype tracking (", plot_type, ")")),
           labs(fill = toTitleCase(gsub("_", " ", input$clone_identifier_column))),
-          theme_bw(base_size = 12),
+          theme_classic(base_size = 14),
           theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 10),
                 legend.position = input$legend_position,
                 plot.title = element_text(hjust = 0.5))
