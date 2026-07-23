@@ -148,3 +148,12 @@ scope_statement_FiI.md
 contribution_to_field_FiI.md
 ruft_revise_*
 ruft_supplementary_figure_3_BCR_lineage.pdf
+
+# --- 2026-07-23 revision 1891118: close confidential-file leaks (paper_FiI_final.md etc. were untracked but NOT ignored) ---
+paper_FiI*.md
+paper_FiI*.docx*
+response_to_reviewers.*
+査読コメント対応表*
+APP_FIX_CHANGES.md
+.codex/
+*.docx.*.bak
