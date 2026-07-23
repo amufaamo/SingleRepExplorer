@@ -157,3 +157,6 @@ response_to_reviewers.*
 APP_FIX_CHANGES.md
 .codex/
 *.docx.*.bak
+regen_fig3.R
+ruft_figure_3_regen.pdf
+Dockerfile.v1.1.0
