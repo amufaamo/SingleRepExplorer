@@ -41,6 +41,12 @@ cellCommunicationUI <- function(id) {
       tags$p(tags$small(
         "Lower = less RAM & faster. Compare mode processes two conditions, so total RAM ≈ 2× this value. Try 2000 if you hit disconnects."
       ), style = "color: #666;"),
+      numericInput(ns("min_cells"),
+                   "Minimum cells per group",
+                   value = 0, min = 0, step = 1),
+      tags$p(tags$small(
+        "0 = automatic (⌊N/1000⌋); set a positive value to override."
+      ), style = "color: #666;"),
       actionButton(ns("run_cellchat"), "Run CellChat Inference",
                    class = "btn-primary", width = "100%", icon = icon("network-wired")),
       hr(),
@@ -159,7 +165,7 @@ cellCommunicationUI <- function(id) {
   so_sub
 }
 
-.run_single_cellchat <- function(so_sub, group_by_col, db_name, max_cells = 3000) {
+.run_single_cellchat <- function(so_sub, group_by_col, db_name, max_cells = 3000, min_cells = 0) {
   # Label — prepend "Cluster " to numeric labels (CellChat rejects bare "0")
   so_sub@meta.data$cellchat_labels <- as.character(so_sub@meta.data[[group_by_col]])
   so_sub@meta.data$cellchat_labels[is.na(so_sub@meta.data$cellchat_labels) |
@@ -226,7 +232,11 @@ cellCommunicationUI <- function(id) {
   .log_mem("after computeCommunProb")
 
   n_cells <- nrow(cc@meta)
-  min_cells_val <- max(1, floor(n_cells / 1000))
+  min_cells_val <- if (is.null(min_cells) || min_cells <= 0) {
+    max(1, floor(n_cells / 1000))
+  } else {
+    max(1, as.integer(min_cells))
+  }
   cc <- CellChat::filterCommunication(cc, min.cells = min_cells_val)
   cc <- CellChat::computeCommunProbPathway(cc)
   cc <- CellChat::aggregateNet(cc)
@@ -313,7 +323,8 @@ cellCommunicationServer <- function(id, myReactives) {
         withProgress(message = "Running CellChat (single)...", value = 0, {
           tryCatch({
             incProgress(0.1, detail = "Preparing...")
-            cc <- .run_single_cellchat(so, group_by_col, input$cellchat_db, max_cells = max_cells_val)
+            cc <- .run_single_cellchat(so, group_by_col, input$cellchat_db,
+                                       max_cells = max_cells_val, min_cells = input$min_cells)
             incProgress(0.9, detail = "Done")
 
             cellchat_results(cc)
@@ -354,7 +365,8 @@ cellCommunicationServer <- function(id, myReactives) {
             if (ncol(so_a) == 0) stop(paste("No cells found for Condition A:", label_a))
             message("[CellChat] Condition A cells: ", ncol(so_a))
 
-            cc_a <- .run_single_cellchat(so_a, group_by_col, input$cellchat_db, max_cells = max_cells_val)
+            cc_a <- .run_single_cellchat(so_a, group_by_col, input$cellchat_db,
+                                         max_cells = max_cells_val, min_cells = input$min_cells)
             # Explicitly free Condition A's Seurat subset before processing B
             rm(so_a); gc(verbose = FALSE)
             .log_mem("after Condition A complete (so_a freed)")
@@ -364,7 +376,8 @@ cellCommunicationServer <- function(id, myReactives) {
             if (ncol(so_b) == 0) stop(paste("No cells found for Condition B:", label_b))
             message("[CellChat] Condition B cells: ", ncol(so_b))
 
-            cc_b <- .run_single_cellchat(so_b, group_by_col, input$cellchat_db, max_cells = max_cells_val)
+            cc_b <- .run_single_cellchat(so_b, group_by_col, input$cellchat_db,
+                                         max_cells = max_cells_val, min_cells = input$min_cells)
             rm(so_b); gc(verbose = FALSE)
             .log_mem("after Condition B complete (so_b freed)")
             incProgress(0.85, detail = "Merging conditions...")
@@ -423,10 +436,16 @@ cellCommunicationServer <- function(id, myReactives) {
       # ggplotにfont sizeを適用するヘルパー
       apply_theme <- function(p) {
         p + ggplot2::theme(
-          text         = ggplot2::element_text(size = base_fs),
-          axis.text    = ggplot2::element_text(size = base_fs),
-          legend.text  = ggplot2::element_text(size = base_fs),
-          strip.text   = ggplot2::element_text(size = facet_fs)
+          text          = ggplot2::element_text(size = base_fs),
+          axis.text     = ggplot2::element_text(size = base_fs),
+          legend.text   = ggplot2::element_text(size = base_fs),
+          legend.title  = ggplot2::element_text(size = base_fs),
+          strip.text    = ggplot2::element_text(size = facet_fs),
+          # netVisual_bubble / rankNet leave a grey panel frame; strip it for clean vector export
+          panel.border     = ggplot2::element_blank(),
+          panel.background = ggplot2::element_blank(),
+          plot.background  = ggplot2::element_blank(),
+          panel.grid       = ggplot2::element_blank()
         )
       }
 

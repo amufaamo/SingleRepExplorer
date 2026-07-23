@@ -130,3 +130,30 @@ Frontiers_in_Immunology_Guidelines.md
 
 # Paper figures source (kept locally for editing, not committed)
 figures/
+
+# --- Confidential manuscript & peer-review materials (NEVER commit to public repo) ---
+reviewer_comments.md
+response_to_reviewers.md
+cohort_facts_verified.md
+paper_FiI_polished.md
+paper_FiI_revised.md
+paper_FiI*.docx
+paper_FiI*.pdf
+CHANGES_MANUSCRIPT.md
+REVISION_PLAN.md
+benchmark_results.md
+cover_letter_FiI.*
+reviewer_candidates.md
+scope_statement_FiI.md
+contribution_to_field_FiI.md
+ruft_revise_*
+ruft_supplementary_figure_3_BCR_lineage.pdf
+
+# --- 2026-07-23 revision 1891118: close confidential-file leaks (paper_FiI_final.md etc. were untracked but NOT ignored) ---
+paper_FiI*.md
+paper_FiI*.docx*
+response_to_reviewers.*
+査読コメント対応表*
+APP_FIX_CHANGES.md
+.codex/
+*.docx.*.bak
