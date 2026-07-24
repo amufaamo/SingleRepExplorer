@@ -164,8 +164,8 @@ ui <- page_fluid(
   lang = "en",
 
   tags$head(
-    tags$title("SingleRepExplorer v1.0.0 - scRNA-seq & Immune Repertoire"),
-    tags$meta(name = "description", content = "SingleRepExplorer v1.0.0: A web application for integrated single-cell RNA-seq and TCR/BCR repertoire analysis."),
+    tags$title("SingleRepExplorer v1.1.0 - scRNA-seq & Immune Repertoire"),
+    tags$meta(name = "description", content = "SingleRepExplorer v1.1.0: A web application for integrated single-cell RNA-seq and TCR/BCR repertoire analysis."),
     tags$script(HTML("
       // Bootstrap 5 native collapse — wire up each .module-card on page load
       $(function() {
@@ -229,7 +229,7 @@ ui <- page_fluid(
   tags$div(
     class = "app-navbar",
     tags$span(class = "app-navbar-brand",
-      icon("flask"), "SingleRepExplorer v1.0.0"
+      icon("flask"), "SingleRepExplorer v1.1.0"
     ),
     tags$span(class = "app-navbar-subtitle",
       "Single-Cell RNA-seq & Immune Repertoire Analysis"
@@ -373,7 +373,7 @@ ui <- page_fluid(
   # ── Footer ─────────────────────────────────────────────────────────────────
   tags$div(
     style = "text-align: center; padding: 20px; background: #f8fbff; border-top: 1px solid #e1e8ed; color: #666; font-size: 0.9em;",
-    "© 2026 SingleRepExplorer v1.0.0 - Open-source integrated scRNA-seq & immune repertoire analysis for immunologists."
+    "© 2026 SingleRepExplorer v1.1.0 - Open-source integrated scRNA-seq & immune repertoire analysis for immunologists."
   )
 )
 
