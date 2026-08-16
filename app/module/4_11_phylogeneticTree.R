@@ -161,11 +161,17 @@ phylogeneticTreeServer <- function(id, myReactives) {
           )
           setwd(old_wd)
 
-          # Convert to ape DNAbin
-          aligned_seqs <- as.character(msa_result)  # named character matrix
-          aligned_mat <- do.call(rbind, strsplit(as.character(Biostrings::unmasked(
-            Biostrings::DNAMultipleAlignment(msa_result))), ""))
-          rownames(aligned_mat) <- labels
+          # Convert to ape DNAbin.
+          # msa()/ClustalOmega returns the alignment in guide-tree order, NOT in
+          # input order, so tip labels must be taken from the alignment's own
+          # names. Assigning `labels` positionally here silently attaches every
+          # label to the wrong sequence (verified: 6 of 8 rows permuted).
+          aligned_ss   <- Biostrings::unmasked(Biostrings::DNAMultipleAlignment(msa_result))
+          aligned_chr  <- as.character(aligned_ss)
+          aligned_mat  <- do.call(rbind, strsplit(aligned_chr, ""))
+          rownames(aligned_mat) <- names(aligned_chr)
+          if (anyNA(rownames(aligned_mat)) || !setequal(rownames(aligned_mat), labels))
+            stop("Alignment labels do not match the input sequences; aborting to avoid a mislabelled tree.")
           dnabin <- ape::as.DNAbin(aligned_mat)
 
           incProgress(0.5, detail = "Computing distances...")
