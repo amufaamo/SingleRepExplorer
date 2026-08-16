@@ -1,0 +1,7 @@
+# Lightweight overlay build: reuse the fully-provisioned v1.1.0 image and only
+# refresh the application code. v1.1.1 fixes a tip-label mis-assignment in the
+# BCR lineage tree module (msa/ClustalOmega returns the alignment in guide-tree
+# order, not input order; labels were being assigned positionally).
+# Avoids a full ~15GB R-package rebuild.
+FROM amufaamo/singlerepexplorer:v1.1.0
+COPY app/ /srv/shiny-server/
